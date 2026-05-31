@@ -1,0 +1,521 @@
+using System.Collections;
+using System.Collections.Generic;
+using JetBrains.Annotations;
+using UnityEditor;
+using UnityEngine;
+
+enum AnimeType
+{
+    Idle,
+    Left,
+    Right,
+}
+
+enum MoveDirection
+{
+    None,
+    Up,
+    Down,
+}
+
+public class PlayerAnime : MonoBehaviour
+{
+    [Header("精灵列表")]
+    public List<Sprite> ReimuIdleSprites;
+    public List<Sprite> ReimuLeftSprites;
+    public List<Sprite> ReimuRightSprites;
+    public List<Sprite> MarisaIdleSprites;
+    public List<Sprite> MarisaLeftSprites;
+    public List<Sprite> MarisaRightSprites;
+    
+    [Header("当前使用的精灵列表")]
+    [SerializeField]
+    private List<Sprite> IdleSprites;
+    [SerializeField]
+    private List<Sprite> LeftSprites;
+    [SerializeField]
+    private List<Sprite> RightSprites;
+
+    [Header("动画参数")]
+    [SerializeField]    
+    private int _currentIndex = 0;// 动画索引
+    private float TimeClock;// 时钟，用来记录过了多长时间
+    [Header("动画速度（每隔多少帧切换一次动画）")]
+    public int AnimeSpeed = 4;// 每隔多少帧切换一次动画
+
+    [Header("移动参数")]
+    [Header("玩家移动速度")]
+    public float MoveSpeed = 5f;// 玩家移动速度
+    private Vector2 moveDirection = Vector2.zero;// 移动方向
+    private bool isDiagonalMove = false;// 是否为斜向移动
+
+    [Header("状态")]
+    private AnimeType _currentAnimeType = AnimeType.Idle;// 当前动画类型
+    private MoveDirection _currentMoveDirection = MoveDirection.None;// 当前移动方向
+
+    [Header("组件")]
+    private SpriteRenderer spriteRenderer;// 精灵渲染器组件
+    private Rigidbody2D rb2D;// 刚体组件
+    public GameObject Pandingdian;// 玩家判定点
+    private Vector3 PandingdianRotation = Vector3.forward;// 玩家判定点旋转角度
+    public float PandingdianSpeed = 360f;// 玩家判定点旋转速度
+    public Animator PandingdianAnimator;// 判定点动画组件
+
+
+    [Header("虹人环动画")]
+    public List<Sprite> ReimuCircles;
+    public List<Sprite> MarisaCircles;
+
+    public GameObject Circle1;// 内层虹人环
+    public GameObject Circle2;// 中层虹人环
+    public GameObject Circle3;// 外层虹人环
+    public Animator CircleAnimator;// 虹人环动画组件
+
+
+    private bool isPandingAnimePlaying = false;// 判定点动画是否正在播放
+    private bool isCircleAnimePlaying = false;// 虹人环动画是否正在播放
+
+    [Header("按键状态")]
+    private bool leftKeyPressed = false;// 左键是否按下
+    private bool rightKeyPressed = false;// 右键是否按下
+    private bool upKeyPressed = false;// 上键是否按下
+    private bool downKeyPressed = false;// 下键是否按下
+
+    void OnEnable()
+    {
+        // 初始化精灵列表
+        InitSpriteLists();
+        
+        // 获取组件
+        spriteRenderer = GetComponent<SpriteRenderer>();
+        rb2D = GetComponent<Rigidbody2D>();
+        
+        // 初始化显示第一帧
+        spriteRenderer.sprite = IdleSprites[0];
+    }
+
+    /// <summary>
+    /// 初始化精灵列表
+    /// </summary>
+    private void InitSpriteLists()
+    {
+        if(Global_GameManager.Instance.character == Character.Reimu)
+        {
+            IdleSprites = ReimuIdleSprites;
+            LeftSprites = ReimuLeftSprites;
+            RightSprites = ReimuRightSprites;
+
+            Circle1.GetComponent<SpriteRenderer>().sprite = ReimuCircles[0];
+            Circle2.GetComponent<SpriteRenderer>().sprite = ReimuCircles[1];
+            Circle3.GetComponent<SpriteRenderer>().sprite = ReimuCircles[2];
+        }
+        else
+        {
+            IdleSprites = MarisaIdleSprites;
+            LeftSprites = MarisaLeftSprites;
+            RightSprites = MarisaRightSprites;
+            
+            Circle1.GetComponent<SpriteRenderer>().sprite = MarisaCircles[0];
+            Circle2.GetComponent<SpriteRenderer>().sprite = MarisaCircles[1];
+            Circle3.GetComponent<SpriteRenderer>().sprite = MarisaCircles[2];
+        }
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        // 检查输入
+        CheckInput();
+        
+        // 处理移动
+        HandleMovement();
+        
+        // 处理动画
+        HandleAnimation();
+    }
+
+    /// <summary>
+    /// 检查输入
+    /// </summary>
+    private void CheckInput()
+    {
+        // 检测左键状态
+        if (Input.GetKey(KeyCode.LeftArrow))
+        {
+            if (!leftKeyPressed)
+            {
+                leftKeyPressed = true;
+                SetLeftAnime();
+            }
+        }
+        else if (leftKeyPressed)
+        {
+            leftKeyPressed = false;
+            if (rightKeyPressed)
+            {
+                SetRightAnime();
+            }
+            else
+            {
+                SetIdleAnime();
+            }
+        }
+
+        // 检测右键状态
+        if (Input.GetKey(KeyCode.RightArrow))
+        {
+            if (!rightKeyPressed)
+            {
+                rightKeyPressed = true;
+                SetRightAnime();
+            }
+        }
+        else if (rightKeyPressed)
+        {
+            rightKeyPressed = false;
+            if (leftKeyPressed)
+            {
+                SetLeftAnime();
+            }
+            else
+            {
+                SetIdleAnime();
+            }
+        }
+
+        // 检测上键状态
+        if (Input.GetKey(KeyCode.UpArrow))
+        {
+            upKeyPressed = true;
+            _currentMoveDirection = MoveDirection.Up;
+        }
+        else if (!Input.GetKey(KeyCode.UpArrow))
+        {
+            upKeyPressed = false;
+            if (!downKeyPressed)
+            {
+                _currentMoveDirection = MoveDirection.None;
+            }
+        }
+
+        // 检测下键状态
+        if (Input.GetKey(KeyCode.DownArrow))
+        {
+            downKeyPressed = true;
+            _currentMoveDirection = MoveDirection.Down;
+        }
+        else if (!Input.GetKey(KeyCode.DownArrow))
+        {
+            downKeyPressed = false;
+            if (!upKeyPressed)
+            {
+                _currentMoveDirection = MoveDirection.None;
+            }
+        }
+
+        // 检测shift键状态
+        if (Input.GetKeyDown(KeyCode.LeftShift))
+        {
+            // 移动速度减半
+            MoveSpeed = 2.5f;
+            // 显示判定点并开始动画
+            StartPandingAnime();
+        }
+        else if (Input.GetKeyUp(KeyCode.LeftShift))
+        {
+            // 恢复正常移动速度
+            MoveSpeed = 5f;
+            // 隐藏判定点并停止动画
+            StopPandingAnime();
+        }
+    }
+
+    /// <summary>
+    /// 处理移动
+    /// </summary>
+    private void HandleMovement()
+    {
+        // 计算水平移动方向
+        float horizontal = 0f;
+        if (leftKeyPressed)
+        {
+            horizontal = -1f;
+        }
+        else if (rightKeyPressed)
+        {
+            horizontal = 1f;
+        }
+
+        // 计算垂直移动方向
+        float vertical = 0f;
+        if (upKeyPressed)
+        {
+            vertical = 1f;
+        }
+        else if (downKeyPressed)
+        {
+            vertical = -1f;
+        }
+
+        // 计算移动方向向量
+        moveDirection = new Vector2(horizontal, vertical);
+
+        // 检查是否为斜向移动
+        isDiagonalMove = (horizontal != 0f && vertical != 0f);
+
+        // 计算移动速度
+        float speed = MoveSpeed;
+        if (isDiagonalMove)
+        {
+            // 斜向移动时速度补正（乘以根号2的倒数）
+            speed = MoveSpeed * 0.7f;
+        }
+
+        // 应用移动
+        rb2D.velocity = moveDirection * speed;    
+
+        if(transform.position.x<-7.75)
+        {
+            transform.position = new Vector3(-7.75f, transform.position.y, 0);
+        }
+        if(transform.position.x>2.55)
+        {
+            transform.position = new Vector3(2.55f, transform.position.y, 0);
+        }
+        if(transform.position.y<-4.1)
+        {
+            transform.position = new Vector3(transform.position.x, -4.1f, 0);
+        }
+        if(transform.position.y>3.95)
+        {
+            transform.position = new Vector3(transform.position.x, 3.95f, 0);
+        }
+    }
+
+    /// <summary>
+    /// 处理动画
+    /// </summary>
+    private void HandleAnimation()
+    {
+        // 根据当前动画类型播放对应动画
+        switch (_currentAnimeType)
+        {
+            case AnimeType.Idle:
+                PlayIdleAnime();
+                break;
+            case AnimeType.Left:
+                PlayLeftAnime();
+                break;
+            case AnimeType.Right:
+                PlayRightAnime();
+                break;
+        }
+        
+        // 处理判定点动画
+        if (isPandingAnimePlaying)
+        {
+            PanDingAnime();
+        }
+        // 处理虹人环动画
+        if (isCircleAnimePlaying)
+        {
+            CircleAnime();
+        }
+    }
+
+    /// <summary>
+    /// 开始判定点动画
+    /// </summary>
+    private void StartPandingAnime()
+    {
+        // 播放判定点动画
+        PandingdianAnimator.SetBool("IsShift", true);
+        isPandingAnimePlaying = true;
+        CircleAnimator.SetBool("IsShift", true);
+        isCircleAnimePlaying = true;
+    }
+
+    /// <summary>
+    /// 停止判定点动画
+    /// </summary>
+    private void StopPandingAnime()
+    {
+        // 停止判定点动画
+        PandingdianAnimator.SetBool("IsShift", false);
+        isPandingAnimePlaying = false;
+        CircleAnimator.SetBool("IsShift", false);
+        isCircleAnimePlaying = false;
+    }
+
+    /// <summary>
+    /// 播放Idle动画
+    /// 按帧检测时间，每隔AnimeSpeed帧切换一次动画
+    /// </summary>
+    private void PlayIdleAnime()
+    {
+        // 增加时钟计数
+        TimeClock += Time.deltaTime;
+
+        // 计算当前应该显示的帧数
+        // 假设游戏运行在60帧，Time.deltaTime约为1/60秒
+        // 我们使用帧数来控制动画速度
+        int currentFrame = Mathf.FloorToInt(TimeClock * 60f);
+
+        // 检查是否需要切换动画帧
+        if (currentFrame >= AnimeSpeed)
+        {
+            // 切换到下一帧
+            _currentIndex = (_currentIndex + 1) % IdleSprites.Count;
+            
+            // 更新精灵
+            if (spriteRenderer != null && IdleSprites.Count > 0)
+            {
+                spriteRenderer.sprite = IdleSprites[_currentIndex];
+            }
+
+            // 重置时钟，保留余数以保持动画流畅
+            TimeClock -= (float)AnimeSpeed / 60f;
+        }
+    }
+
+    /// <summary>
+    /// 播放左移动画
+    /// 按帧检测时间，每隔AnimeSpeed帧切换一次动画
+    /// </summary>
+    private void PlayLeftAnime()
+    {
+        // 增加时钟计数
+        TimeClock += Time.deltaTime;
+
+        // 计算当前应该显示的帧数
+        int currentFrame = Mathf.FloorToInt(TimeClock * 60f);
+
+        // 检查是否需要切换动画帧
+        if (currentFrame >= AnimeSpeed)
+        {
+            // 切换到下一帧
+            _currentIndex ++;
+            if(_currentIndex >= LeftSprites.Count)
+            {
+                _currentIndex = LeftSprites.Count - 3;
+            }
+            spriteRenderer.sprite = LeftSprites[_currentIndex];
+            // 重置时钟，保留余数以保持动画流畅
+            TimeClock -= (float)AnimeSpeed / 60f;
+        }
+    }
+
+    /// <summary>
+    /// 播放右移动画
+    /// 按帧检测时间，每隔AnimeSpeed帧切换一次动画
+    /// </summary>
+    private void PlayRightAnime()
+    {
+        // 增加时钟计数
+        TimeClock += Time.deltaTime;
+
+        // 计算当前应该显示的帧数
+        int currentFrame = Mathf.FloorToInt(TimeClock * 60f);
+
+        // 检查是否需要切换动画帧
+        if (currentFrame >= AnimeSpeed)
+        {
+            // 切换到下一帧
+            _currentIndex ++;
+            if(_currentIndex >= RightSprites.Count)
+            {
+                _currentIndex = RightSprites.Count - 3;
+            }
+            spriteRenderer.sprite = RightSprites[_currentIndex];
+            // 重置时钟，保留余数以保持动画流畅
+            TimeClock -= (float)AnimeSpeed / 60f;
+        }
+    }
+
+    /// <summary>
+    /// 设置Idle动画（供外部调用切换到Idle状态）
+    /// </summary>
+    public void SetIdleAnime()
+    {
+        // 如果当前不是Idle状态，切换到Idle状态
+        if (_currentAnimeType != AnimeType.Idle)
+        {
+            _currentAnimeType = AnimeType.Idle;
+            _currentIndex = 0;// 重置动画索引
+            TimeClock = 0f;// 重置时钟
+            
+            // 立即显示第一帧
+            if (spriteRenderer != null && IdleSprites.Count > 0)
+            {
+                spriteRenderer.sprite = IdleSprites[0];
+            }
+        }
+    }
+
+    /// <summary>
+    /// 设置左移动画（供外部调用切换到Left状态）
+    /// </summary>
+    public void SetLeftAnime()
+    {
+        // 检查LeftSprites列表是否为空
+        if (LeftSprites == null || LeftSprites.Count == 0)
+        {
+            Debug.LogWarning("PlayerAnime: LeftSprites列表为空，无法切换到Left状态！");
+            return;
+        }
+
+        // 如果当前不是Left状态，切换到Left状态
+        if (_currentAnimeType != AnimeType.Left)
+        {
+            _currentAnimeType = AnimeType.Left;
+            _currentIndex = 0;// 重置动画索引
+            TimeClock = 0f;// 重置时钟
+            
+            // 立即显示第一帧
+            if (spriteRenderer != null && LeftSprites.Count > 0)
+            {
+                spriteRenderer.sprite = LeftSprites[0];
+            }
+        }
+    }
+
+    /// <summary>
+    /// 设置右移动画（供外部调用切换到Right状态）
+    /// </summary>
+    public void SetRightAnime()
+    {
+        // 检查RightSprites列表是否为空
+        if (RightSprites == null || RightSprites.Count == 0)
+        {
+            Debug.LogWarning("PlayerAnime: RightSprites列表为空，无法切换到Right状态！");
+            return;
+        }
+
+        // 如果当前不是Right状态，切换到Right状态
+        if (_currentAnimeType != AnimeType.Right)
+        {
+            _currentAnimeType = AnimeType.Right;
+            _currentIndex = 0;// 重置动画索引
+            TimeClock = 0f;// 重置时钟
+            
+            // 立即显示第一帧
+            if (spriteRenderer != null && RightSprites.Count > 0)
+            {
+                spriteRenderer.sprite = RightSprites[0];
+            }
+        }
+    }
+
+    private void PanDingAnime()
+    {
+        Pandingdian.transform.Rotate(PandingdianRotation, PandingdianSpeed * Time.deltaTime);
+    }
+
+    /// <summary>
+    /// 播放虹人环动画
+    /// </summary>
+    private void CircleAnime()
+    {
+        CircleAnimator.SetBool("IsShift", isCircleAnimePlaying);
+    }
+}
