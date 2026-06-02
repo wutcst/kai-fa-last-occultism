@@ -39,8 +39,8 @@ public class TrackedFO : MonoBehaviour
     void Update()
     {
         //CheckTarget();
-        //TrackedMove();
-        //MoveCheck();
+        TrackedMove();
+        MoveCheck();
     }
 
     private void CheckTarget()// 检查目标是否存在，如果当前敌人死亡（被对象池回收）则重新寻敌

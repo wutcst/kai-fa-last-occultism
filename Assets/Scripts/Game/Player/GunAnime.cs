@@ -9,7 +9,8 @@ public class GunAnime : MonoBehaviour
     public List<GameObject> ReimuGuns;// 灵梦子机们
     public GameObject MarisaGun;// 魔理沙子机
     public List<GameObject> MarisaGuns;// 魔理沙子机们
-    public GameObject MagicGun;// 七曜魔法子机  
+    public GameObject MagicGun;// 七曜魔法子机
+    public ShootNormal ShootNormal;// 普通常规机体引用
 
     private readonly List<Vector2> GunPos = new()
     {
@@ -42,6 +43,7 @@ public class GunAnime : MonoBehaviour
 
     private bool isShifted = false;// 是否按下Shift
     public bool IsShiftedNow => isShifted;// 是否按下Shift
+    private bool isExitingMagic = false; // 是否正在退出魔法状态
 
     void OnEnable()
     {
@@ -72,6 +74,7 @@ public class GunAnime : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if(Global_GameManager.Instance.state != State.Gaming) return;
         CheckUpdate();
         AddPower();
         SubPower();
@@ -93,6 +96,7 @@ public class GunAnime : MonoBehaviour
                 MarisaGun.SetActive(true);
                 MagicGun.SetActive(false);
                 UpdateGuns(MarisaGuns);
+                ShootNormal.SetLimited(false);
                 break;
             case 2:
                 NormalGuns[0].SetActive(false);
@@ -100,6 +104,7 @@ public class GunAnime : MonoBehaviour
                 ReimuGun.SetActive(false);
                 MarisaGun.SetActive(false);
                 MagicGun.SetActive(true);
+                ShootNormal.SetLimited(true);
                 break;
         }
     }
@@ -109,23 +114,36 @@ public class GunAnime : MonoBehaviour
         if(Input.GetKeyDown(KeyCode.LeftShift))
         {
             isShifted = true;
-            if(Index==1)// 如果是魔理沙常态按下Shift进入七曜态
+            if(Index==0)// 如果是灵梦常态
+            {
+                UpdateGunPos();
+            }
+            if(Index==1 && !isExitingMagic)// 如果是魔理沙常态按下Shift进入七曜态
             {
                 Index = 2;
+                SwitchGun(Index);
+                UpdateGunPos();
             }
-            SwitchGun(Index);
-            UpdateGunPos();
         }
         else if(Input.GetKeyUp(KeyCode.LeftShift))
         {
             isShifted = false;
-            if(Index==2)// 如果是七曜态松开Shift进入魔理沙常态
+            if(Index==2 && !isExitingMagic)// 如果是七曜态松开Shift进入魔理沙常态
             {
-                Index = 1;
+                // 不立即切换，由MagicAnime完成退出动画后调用SwitchToMarisaNormal
+                isExitingMagic = true;
             }
-            SwitchGun(Index);
             UpdateGunPos();
         }
+    }
+
+    // 由MagicAnime调用，完成退出动画后切换到魔理沙常态
+    public void SwitchToMarisaNormal()
+    {
+        Index = 1;
+        SwitchGun(Index);
+        UpdateGunPos();
+        isExitingMagic = false;
     }
 
     private void UpdateGunNumber(int power)
@@ -141,7 +159,7 @@ public class GunAnime : MonoBehaviour
         }
     }
 
-    private void UpdateGuns(List<GameObject> guns)
+    public void UpdateGuns(List<GameObject> guns)
     {
         for(int i=0;i<GunNumber;i++)
         {
@@ -251,9 +269,9 @@ public class GunAnime : MonoBehaviour
                     MarisaGuns[1].transform.localPosition = GunPos[11];
                     MarisaGuns[1].transform.eulerAngles = new Vector3(0,0,4);
                     MarisaGuns[2].transform.localPosition = GunPos[12];
-                    MarisaGuns[2].transform.eulerAngles = new Vector3(0,0,2);
+                    MarisaGuns[2].transform.eulerAngles = new Vector3(0,0,4);
                     MarisaGuns[3].transform.localPosition = GunPos[13];
-                    MarisaGuns[3].transform.eulerAngles = new Vector3(0,0,-2);
+                    MarisaGuns[3].transform.eulerAngles = new Vector3(0,0,-4);
                     break;
             }
         }

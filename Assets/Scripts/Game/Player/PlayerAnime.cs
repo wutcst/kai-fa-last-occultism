@@ -122,6 +122,7 @@ public class PlayerAnime : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if(Global_GameManager.Instance.state != State.Gaming) return;
         // 检查输入
         CheckInput();
         
@@ -213,6 +214,8 @@ public class PlayerAnime : MonoBehaviour
             // 隐藏判定点并停止动画
             StopPandingAnime();
         }
+        else if(Input.GetKeyUp(KeyCode.X))
+        {Debug.Log("游戏内点击了X键");}
         
         // 将移动状态传递给碰撞脚本
         if (playerCollision != null)

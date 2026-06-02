@@ -13,7 +13,7 @@ public class Global_AudioManager : Singleton<Global_AudioManager>
 
     private AudioSource bgmSource;      // 背景音乐音频源
     private List<AudioSource> sfxPool;  // 音效池
-    private int maxSFXPoolSize = 10;    // 音效池最大容量
+    private readonly int maxSFXPoolSize = 10;    // 音效池最大容量
 
     #endregion
 
@@ -34,6 +34,7 @@ public class Global_AudioManager : Singleton<Global_AudioManager>
 
     private float bgmVolume = 0.70f;     // 背景音乐音量
     private float sfxVolume = 0.80f;     // 音效音量
+    public float CurrentTime;
 
     #endregion
 
@@ -52,6 +53,11 @@ public class Global_AudioManager : Singleton<Global_AudioManager>
         
         // 初始化背景音乐字典
         InitializeBGMDictionary();
+    }
+
+    void Update()
+    {
+        CurrentTime = bgmSource.time;
     }
     
     /// <summary>
@@ -308,7 +314,7 @@ public class Global_AudioManager : Singleton<Global_AudioManager>
     }
     
     /// <summary>
-    /// 停止背景音乐
+    /// ??????????
     /// </summary>
     public void StopBGM()
     {
@@ -409,6 +415,50 @@ public class Global_AudioManager : Singleton<Global_AudioManager>
             {
                 source.Stop();
             }
+        }
+    }
+    
+    /// <summary>
+    /// 获取当前播放的背景音乐名称
+    /// </summary>
+    /// <returns>当前背景音乐名称，如果没有播放则返回空字符串</returns>
+    public string GetCurrentBGMName()
+    {
+        if (bgmSource == null || bgmSource.clip == null)
+        {
+            return "";
+        }
+        
+        // 从字典中查找当前剪辑对应的名称
+        foreach (var kvp in bgmDictionary)
+        {
+            if (kvp.Value == bgmSource.clip)
+            {
+                return kvp.Key;
+            }
+        }
+        
+        return "";
+    }
+    
+    /// <summary>
+    /// 获取当前背景音乐的播放位置
+    /// </summary>
+    /// <returns>当前播放位置（秒）</returns>
+    public float GetCurrentBGMPosition()
+    {
+        return bgmSource != null ? bgmSource.time : 0f;
+    }
+    
+    /// <summary>
+    /// 设置背景音乐的播放位置
+    /// </summary>
+    /// <param name="position">播放位置（秒）</param>
+    public void SetBGMPosition(float position)
+    {
+        if (bgmSource != null)
+        {
+            bgmSource.time = position;
         }
     }
     

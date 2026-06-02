@@ -8,6 +8,12 @@ public class ShootNormal : MonoBehaviour
     public GameObject MarisaNormal;
     private GameObject Normal;
 
+    [Header("枪管配置")]
+    [Tooltip("第一个枪管位置")]
+    public Transform GunLeft;
+    [Tooltip("第二个枪管位置")]
+    public Transform GunRight;
+
     [Header("射击配置")]
     [Tooltip("射击间隔（秒）")]
     public float shootInterval = 0.12f; // 射击间隔
@@ -18,24 +24,33 @@ public class ShootNormal : MonoBehaviour
     void OnEnable()
     {
         // 初始化对应角色的弹幕预制体
-        if (Global_GameManager.Instance.character == Character.Reimu)
-        {
-            Normal = ReimuNormal;
-        }
-        else if (Global_GameManager.Instance.character == Character.Marisa)
-        {
-            Normal = MarisaNormal;
-        }
+        UpdateNormalPrefab();
 
         // 初始化计时器（确保游戏开始即可射击）
         shootTimer = shootInterval;
+        
         // 初始化弹幕池
-        Global_ObjectPool.Instance.InitPool(Normal,0);
+        if (Normal != null)
+        {
+            Global_ObjectPool.Instance.InitPool(Normal, 0);
+        }
+        else
+        {
+            Debug.LogWarning("Normal prefab is null, bullet pool not initialized");
+        }
     }
 
     // Update is called once per frame
     void Update()
     {
+        if(Global_GameManager.Instance == null || Global_GameManager.Instance.state != State.Gaming) return;
+        
+        // 确保Normal预制体已初始化
+        if (Normal == null)
+        {
+            UpdateNormalPrefab();
+        }
+        
         // 计时器持续累加
         shootTimer += Time.deltaTime;
         if(IsLimited)
@@ -43,15 +58,51 @@ public class ShootNormal : MonoBehaviour
         Shoot();
     }
 
+    /// <summary>
+    /// 更新Normal预制体引用
+    /// </summary>
+    private void UpdateNormalPrefab()
+    {
+        if (Global_GameManager.Instance != null)
+        {
+            if (Global_GameManager.Instance.character == Character.Reimu)
+            {
+                Normal = ReimuNormal;
+            }
+            else if (Global_GameManager.Instance.character == Character.Marisa)
+            {
+                Normal = MarisaNormal;
+            }
+        }
+    }
+
     private void Shoot()
     {
-        // 只有按下Z键 + 计时器达到间隔时间，才允许射击
-        if (Input.GetKey(KeyCode.Z) && shootTimer >= shootInterval)
+        // 只有按下Z键 + 计时器达到间隔时间 + Normal预制体不为null，才允许射击
+        if (Input.GetKey(KeyCode.Z) && shootTimer >= shootInterval && Normal != null)
         {
-            // 从对象池获取弹幕
-            Global_ObjectPool.Instance.GetObject
-            (Normal, transform.position, Normal.transform.rotation);
-            shootTimer = 0; // 射击后重置计时器，开始冷却
+            try
+            {
+                // 如果枪管不为空，则从对应枪管位置发射子弹
+                if (GunLeft != null && GunRight != null)
+                {
+                    // 从对象池获取弹幕
+                    Global_ObjectPool.Instance.GetObject
+                    (Normal, GunLeft.position, Normal.transform.rotation);
+                    Global_ObjectPool.Instance.GetObject
+                    (Normal, GunRight.position, Normal.transform.rotation);
+                    shootTimer = 0; // 射击后重置计时器，开始冷却
+                    Debug.Log("发射两枚普通子弹");
+                }
+                else
+                {
+                    Debug.LogWarning("枪管位置未设置，无法发射子弹");
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError("发射普通子弹失败: " + e.Message);
+            }
         }
     }
 
