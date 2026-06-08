@@ -8,7 +8,6 @@ public enum MoveMode
 {
     Path,       // 路径点移动
     Track,      // 追踪式移动
-    Stationary, // 不移动
     Flicker,    // 闪烁模式
     Gravity     // 重力移动
 }
@@ -18,9 +17,8 @@ public enum SecondaryMode
 {
     Track,      // 追踪式移动
     FlickerOut, // 闪烁淡出模式
-    Stationary, // 不移动
     Gravity,    // 重力移动
-    Disappear   // 直接回收自身
+    Stationary  // 不移动
 }
 
 public class CreateEnemy : MonoBehaviour
@@ -33,10 +31,37 @@ public class CreateEnemy : MonoBehaviour
     public GameObject ballEnemyPrefab;   // 球敌人预制体
     public GameObject eliteEnemyPrefab;  // 精英敌人预制体
     
+    [Header("子弹预制体")]
+    public GameObject LittleJade;// 小玉预制体
+    public GameObject MidJade;   // 中玉预制体
+    public GameObject LargeJade;    // 大玉预制体
+    public GameObject LittleRice;   // 小米预制体
+    public GameObject LargeRice;    // 大米预制体
+    public GameObject Dhratarastra;  // 持国天预制体
+    public GameObject talisman; // 符箓预制体
+    public GameObject arrow; // 箭头预制体
+    public GameObject dart; // 飞镖预制体
+    public GameObject LittleStar; // 小星预制体
+    public GameObject LargeStar; // 大星预制体
+    public GameObject TailBullet; // 拖尾子弹预制体
+    
     [Header("对象池设置")]
-    public int normalEnemyPoolSize = 10;// 普通敌人对象池大小
-    public int ballEnemyPoolSize = 10;  // 球敌人对象池大小
+    public int normalEnemyPoolSize = 30;// 普通敌人对象池大小
+    public int ballEnemyPoolSize = 30;  // 球敌人对象池大小
     public int eliteEnemyPoolSize = 5;  // 精英敌人对象池大小
+
+    public int LittleJadePoolSize = 30;   // 小玉对象池大小(常规)
+    public int MidJadePoolSize = 30;    // 中玉对象池大小(隐形)
+    public int LargeJadePoolSize = 20;    // 大玉对象池大小(隐形)
+    public int LittleRicePoolSize = 30;   // 小米对象池大小(常规)
+    public int LargeRicePoolSize = 30;    // 大米对象池大小(常规)
+    public int DhratarastraPoolSize = 30;    // 持国天对象池大小(常规)
+    public int talismanPoolSize = 20; // 符稿对象池大小(追踪)
+    public int arrowPoolSize = 20; // 箭头对象池大小(追踪)
+    public int dartPoolSize = 20; // 飞镖对象池大小(追踪)
+    public int LittleStarPoolSize = 20; // 小星对象池大小(滞留)
+    public int LargeStarPoolSize = 20; // 大星对象池大小(滞留)
+    public int TailBulletPoolSize = 50; // 拖尾子弹对象池大小(拖尾)
     
     [Header("音频管理")]
     private Global_AudioManager audioManager;// 音频管理单例
@@ -46,6 +71,7 @@ public class CreateEnemy : MonoBehaviour
     private int CurrentSpawn = 0;//第0波次
     public GameObject player;// 玩家对象引用
 
+
     void OnEnable()
     {
         // 初始化对象池
@@ -53,17 +79,19 @@ public class CreateEnemy : MonoBehaviour
         
         // 获取音频管理单例
         audioManager = Global_AudioManager.Instance;
+        
     }
 
     void Update()
     {
-        // // 获取当前音乐播放时间
+
+        // 获取当前音乐播放时间
         // if (audioManager.CurrentBGMTime != 0)
         // {
         //     currentMusicTime = audioManager.CurrentBGMTime;
         // }
-        currentMusicTime += Time.deltaTime;// 临时的
-        
+
+        currentMusicTime += Time.deltaTime;// 临时的   
         // 检查是否需要生成敌人
         CheckSpawnEnemies();
     }
@@ -96,6 +124,56 @@ public class CreateEnemy : MonoBehaviour
         {
             Global_ObjectPool.Instance.InitPool(eliteEnemyPrefab, eliteEnemyPoolSize);
         }
+        
+        // 初始化子弹对象池
+        if (LittleJade != null)
+        {
+            Global_ObjectPool.Instance.InitPool(LittleJade, LittleJadePoolSize);
+        }
+        if (MidJade != null)
+        {
+            Global_ObjectPool.Instance.InitPool(MidJade, MidJadePoolSize);
+        }
+        if (LargeJade != null)
+        {
+            Global_ObjectPool.Instance.InitPool(LargeJade, LargeJadePoolSize);
+        }
+        if (LittleRice != null)
+        {
+            Global_ObjectPool.Instance.InitPool(LittleRice, LittleRicePoolSize);
+        }
+        if (LargeRice != null)
+        {
+            Global_ObjectPool.Instance.InitPool(LargeRice, LargeRicePoolSize);
+        }
+        if (Dhratarastra != null)
+        {
+            Global_ObjectPool.Instance.InitPool(Dhratarastra, DhratarastraPoolSize);
+        }
+        if (talisman != null)
+        {
+            Global_ObjectPool.Instance.InitPool(talisman, talismanPoolSize);
+        }
+        if (arrow != null)
+        {
+            Global_ObjectPool.Instance.InitPool(arrow, arrowPoolSize);
+        }
+        if (dart != null)
+        {
+            Global_ObjectPool.Instance.InitPool(dart, dartPoolSize);
+        }
+        if (LittleStar != null)
+        {
+            Global_ObjectPool.Instance.InitPool(LittleStar, LittleStarPoolSize);
+        }
+        if (LargeStar != null)
+        {
+            Global_ObjectPool.Instance.InitPool(LargeStar, LargeStarPoolSize);
+        }
+        if (TailBullet != null)
+        {
+            Global_ObjectPool.Instance.InitPool(TailBullet, TailBulletPoolSize);
+        }
     }
     
     /// <summary>
@@ -120,7 +198,6 @@ public class CreateEnemy : MonoBehaviour
     /// <param name="config">生成配置</param>
     private void SpawnEnemy(EnemySpawnConfig config)
     {
-        Debug.Log($"生成敌人: {config.enemyType} {config.spawnCount} {config.moveMode} {config.secondaryMoveMode}");
         // 开始生成多个敌人
         StartCoroutine(SpawnEnemiesCoroutine(config));
     }
@@ -169,10 +246,27 @@ public class CreateEnemy : MonoBehaviour
             // 检查路径点数量
             CheckMovePointsCount(config);
             
-            // 设置敌人位置（使用第一个路径点或当前位置）
+            // 设置敌人位置
             if (config.movePoints != null && config.movePoints.Count > 0)
             {
-                enemy.transform.position = config.movePoints[0].transform.position;
+                int movePointsCount = config.movePoints.Count;
+                int spawnCount = config.spawnCount;
+                
+                if (movePointsCount == 1)
+                {
+                    // 所有敌人从同一个路径点生成
+                    enemy.transform.position = config.movePoints[0].transform.position;
+                }
+                else if (movePointsCount == spawnCount)
+                {
+                    // 每个敌人从不同的路径点生成
+                    enemy.transform.position = config.movePoints[i].transform.position;
+                }
+                else
+                {
+                    // 默认使用第一个路径点
+                    enemy.transform.position = config.movePoints[0].transform.position;
+                }
             }
             else
             {
@@ -183,13 +277,13 @@ public class CreateEnemy : MonoBehaviour
             switch (config.enemyType)
             {
                 case EnemySpawnConfig.EnemyType.Normal:
-                    SetupNormalEnemy(enemy, config);
+                    SetupNormalEnemy(enemy, config, i);
                     break;
                 case EnemySpawnConfig.EnemyType.Ball:
-                    SetupBallEnemy(enemy, config);
+                    SetupBallEnemy(enemy, config, i);
                     break;
                 case EnemySpawnConfig.EnemyType.Elite:
-                    SetupEliteEnemy(enemy, config);
+                    SetupEliteEnemy(enemy, config, i);
                     break;
             }
             
@@ -213,7 +307,7 @@ public class CreateEnemy : MonoBehaviour
     /// <summary>
     /// 设置普通敌人
     /// </summary>
-    private void SetupNormalEnemy(GameObject enemy, EnemySpawnConfig config)
+    private void SetupNormalEnemy(GameObject enemy, EnemySpawnConfig config, int enemyIndex)
     {
         EnemyAnime enemyAnime = enemy.GetComponent<EnemyAnime>();
         if (enemyAnime != null)
@@ -241,9 +335,6 @@ public class CreateEnemy : MonoBehaviour
                     break;
                 case MoveMode.Track:
                     enemyAnime.moveMode = MoveMode.Track;
-                    break;
-                case MoveMode.Stationary:
-                    enemyAnime.moveMode = MoveMode.Stationary;
                     break;
                 case MoveMode.Flicker:
                     enemyAnime.moveMode = MoveMode.Flicker;
@@ -275,16 +366,19 @@ public class CreateEnemy : MonoBehaviour
                 case SecondaryMode.Gravity:
                     enemyAnime.secondaryMoveMode = SecondaryMode.Gravity;
                     break;
-                case SecondaryMode.Disappear:
-                    enemyAnime.secondaryMoveMode = SecondaryMode.Disappear;
-                    break;
             }
             
             // 设置射击配置
             EnemyShoot enemyShoot = enemy.GetComponent<EnemyShoot>();
             if (enemyShoot != null)
             {
-                enemyShoot.SetShootConfig(config.shootConfig);
+                enemyShoot.SetShootConfig(config.shootConfigs);
+                enemyShoot.SetEnemyIndex(enemyIndex);
+                // 设置玩家对象
+                if (player != null)
+                {
+                    enemyShoot.SetPlayer(player);
+                }
             }
             
             // 设置玩家对象
@@ -298,7 +392,7 @@ public class CreateEnemy : MonoBehaviour
     /// <summary>
     /// 设置球敌人
     /// </summary>
-    private void SetupBallEnemy(GameObject enemy, EnemySpawnConfig config)
+    private void SetupBallEnemy(GameObject enemy, EnemySpawnConfig config, int enemyIndex)
     {
         BallsAnime ballsAnime = enemy.GetComponent<BallsAnime>();
         if (ballsAnime != null)
@@ -326,9 +420,6 @@ public class CreateEnemy : MonoBehaviour
                     break;
                 case MoveMode.Track:
                     ballsAnime.moveMode = MoveMode.Track;
-                    break;
-                case MoveMode.Stationary:
-                    ballsAnime.moveMode = MoveMode.Stationary;
                     break;
                 case MoveMode.Flicker:
                     ballsAnime.moveMode = MoveMode.Flicker;
@@ -360,16 +451,19 @@ public class CreateEnemy : MonoBehaviour
                 case SecondaryMode.Gravity:
                     ballsAnime.secondaryMoveMode = SecondaryMode.Gravity;
                     break;
-                case SecondaryMode.Disappear:
-                    ballsAnime.secondaryMoveMode = SecondaryMode.Disappear;
-                    break;
             }
             
             // 设置射击配置
             EnemyShoot enemyShoot = enemy.GetComponent<EnemyShoot>();
             if (enemyShoot != null)
             {
-                enemyShoot.SetShootConfig(config.shootConfig);
+                enemyShoot.SetShootConfig(config.shootConfigs);
+                enemyShoot.SetEnemyIndex(enemyIndex);
+                // 设置玩家对象
+                if (player != null)
+                {
+                    enemyShoot.SetPlayer(player);
+                }
             }
             
             // 设置玩家对象
@@ -383,7 +477,7 @@ public class CreateEnemy : MonoBehaviour
     /// <summary>
     /// 设置精英敌人
     /// </summary>
-    private void SetupEliteEnemy(GameObject enemy, EnemySpawnConfig config)
+    private void SetupEliteEnemy(GameObject enemy, EnemySpawnConfig config, int enemyIndex)
     {
         EliteAnime eliteAnime = enemy.GetComponent<EliteAnime>();
         if (eliteAnime != null)
@@ -411,14 +505,14 @@ public class CreateEnemy : MonoBehaviour
                         eliteAnime.SetMovePoints(config.movePoints);
                     }
                     break;
-                case MoveMode.Stationary:
-                    eliteAnime.moveMode = MoveMode.Stationary;
-                    break;
                 case MoveMode.Gravity:
                     eliteAnime.moveMode = MoveMode.Gravity;
                     break;
                 case MoveMode.Flicker:
                     eliteAnime.moveMode = MoveMode.Flicker;
+                    break;
+                case MoveMode.Track:
+                    eliteAnime.moveMode = MoveMode.Track;
                     break;
                 default:
                     Debug.LogWarning($"大妖精不支持的移动模式: {config.moveMode}");
@@ -437,8 +531,8 @@ public class CreateEnemy : MonoBehaviour
                 case SecondaryMode.FlickerOut:
                     eliteAnime.secondaryMoveMode = SecondaryMode.FlickerOut;
                     break;
-                case SecondaryMode.Disappear:
-                    eliteAnime.secondaryMoveMode = SecondaryMode.Disappear;
+                case SecondaryMode.Track:
+                    eliteAnime.secondaryMoveMode = SecondaryMode.Track;
                     break;
             }
             
@@ -446,7 +540,13 @@ public class CreateEnemy : MonoBehaviour
             EnemyShoot enemyShoot = enemy.GetComponent<EnemyShoot>();
             if (enemyShoot != null)
             {
-                enemyShoot.SetShootConfig(config.shootConfig);
+                enemyShoot.SetShootConfig(config.shootConfigs);
+                enemyShoot.SetEnemyIndex(enemyIndex);
+                // 设置玩家对象
+                if (player != null)
+                {
+                    enemyShoot.SetPlayer(player);
+                }
             }
         }
     }
@@ -469,11 +569,10 @@ public class CreateEnemy : MonoBehaviour
                 break;
             case MoveMode.Track:
             case MoveMode.Flicker:
-            case MoveMode.Stationary:
             case MoveMode.Gravity:
-                if (movePointsCount != 1)
+                if (movePointsCount != 1 && movePointsCount != config.spawnCount)
                 {
-                    Debug.LogWarning($"{config.moveMode}模式需要有且仅有1个路径点，当前数量: {movePointsCount}");
+                    Debug.LogWarning($"{config.moveMode}模式需要有且仅有1个路径点，或与敌人数量相同的路径点，当前数量: {movePointsCount}");
                 }
                 break;
         }

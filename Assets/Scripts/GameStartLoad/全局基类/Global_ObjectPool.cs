@@ -11,6 +11,8 @@ public class Global_ObjectPool : Singleton<Global_ObjectPool>
 {
     // 存储不同类型的物品池
     private readonly Dictionary<string, Queue<GameObject>> ObjectPool = new();
+    // 存储每个对象池的初始容量
+    private readonly Dictionary<string, int> PoolInitialCapacities = new();
     [Header("预生成数量")]
     public int ObjectsInPool_Count = 40;
 
@@ -31,6 +33,7 @@ public class Global_ObjectPool : Singleton<Global_ObjectPool>
         if (ObjectPool.ContainsKey(poolKey)) return;// 如果已经初始化过，直接返回
         Queue<GameObject> pool = new();
         ObjectPool.Add(poolKey, pool);
+        PoolInitialCapacities.Add(poolKey, count); // 记录初始容量
         for (int i = 0; i < count; i++)
         {
             GameObject item = Instantiate(itemPrefab);
@@ -48,14 +51,23 @@ public class Global_ObjectPool : Singleton<Global_ObjectPool>
     /// <returns>获取到的对象</returns>
     public GameObject GetObject(GameObject itemPrefab, Vector3 position, Quaternion rotation)
     {
+        if (itemPrefab == null) {
+            Debug.LogError("GetObject: itemPrefab is null");
+            return null;
+        }
+        
         string poolKey = itemPrefab.name;
+        
         GameObject item;
         // 检查是否有初始化过该类型的池
         if (!ObjectPool.ContainsKey(poolKey))
         {
             InitPool(itemPrefab,10); // 未初始化则自动初始化
-            Debug.Log($"创建一个不在物品池的物品：{poolKey}");
         }
+        
+        // 检查池容量并动态扩容
+        CheckAndExpandPool(itemPrefab);
+        
         if(ObjectPool[poolKey].Count > 0)
         {
             item = ObjectPool[poolKey].Dequeue();
@@ -67,6 +79,42 @@ public class Global_ObjectPool : Singleton<Global_ObjectPool>
         item.transform.SetPositionAndRotation(position, rotation);
         item.SetActive(true);
         return item;
+    }
+    
+    /// <summary>
+    /// 检查并动态扩容对象池
+    /// </summary>
+    /// <param name="itemPrefab">对象预制体</param>
+    private void CheckAndExpandPool(GameObject itemPrefab)
+    {
+        string poolKey = itemPrefab.name;
+        if (!ObjectPool.ContainsKey(poolKey) || !PoolInitialCapacities.ContainsKey(poolKey)) return;
+        
+        Queue<GameObject> pool = ObjectPool[poolKey];
+        int idleCount = pool.Count; // 当前空闲对象数量
+        int totalCapacity = PoolInitialCapacities[poolKey]; // 总容量
+        
+        // 检查空闲容量是否小于10%
+        if (idleCount < totalCapacity * 0.1f)
+        {
+            // Debug.Log($"对象池 {poolKey} 空闲容量小于10%{idleCount}/{totalCapacity}，触发扩容");
+            // 扩容50%
+            int expandCount = Mathf.CeilToInt(totalCapacity * 0.5f);
+            int newTotalCapacity = totalCapacity + expandCount;
+            
+            // 向池中添加新对象
+            for (int i = 0; i < expandCount; i++)
+            {
+                GameObject item = Instantiate(itemPrefab, transform);
+                item.SetActive(false);
+                pool.Enqueue(item);
+            }
+            
+            // 更新总容量
+            PoolInitialCapacities[poolKey] = newTotalCapacity;
+            
+            // Debug.Log($"对象池 {poolKey} 已扩容，新增 {expandCount} 个对象，总容量: {newTotalCapacity}，当前空闲: {pool.Count}");
+        }
     }
 
     /// <summary>
@@ -106,6 +154,7 @@ public class Global_ObjectPool : Singleton<Global_ObjectPool>
             }
         }
         ObjectPool.Clear();
+        PoolInitialCapacities.Clear(); // 清空初始容量字典
         Debug.Log("清空所有物品池");
     }
 }

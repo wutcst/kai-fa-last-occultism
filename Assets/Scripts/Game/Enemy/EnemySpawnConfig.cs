@@ -1,13 +1,12 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using static ShootMode;
 
 [System.Serializable]
 public class EnemySpawnConfig
 {
     [Header("生成时间")]
-    public int spawnTime;// 基于音乐时间
+    public float spawnTime;// 基于音乐时间
     
     [Header("生成数量")]
     public int spawnCount = 1;// 生成敌人的数量
@@ -41,6 +40,6 @@ public class EnemySpawnConfig
     [Header("重力参数")]
     public float gravityScale = 1f;// 重力缩放
     
-    [Header("射击配置")]
-    public ShootMode shootConfig;
+    [Header("射击配置列表")]
+    public List<ShootMode> shootConfigs = new List<ShootMode>();
 }
