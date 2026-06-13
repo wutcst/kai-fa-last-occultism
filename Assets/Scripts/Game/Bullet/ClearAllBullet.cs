@@ -42,10 +42,8 @@ public class ClearAllBullet : MonoBehaviour
     /// <summary>
     /// 清空屏幕中的所有子弹
     /// </summary>
-    public void ClearScreenBullet()
+    public void ClearScreenBullet(bool isPlaySound = true)
     {
-        // 播放清屏音效
-        Global_AudioManager.Instance.PlaySFX(clearClip);
         // 找到所有敌人子弹
         GameObject[] enemyBullets = GameObject.FindGameObjectsWithTag("EnemyBullet");
         GameObject[] playerBullets = GameObject.FindGameObjectsWithTag("PlayerBullet");
