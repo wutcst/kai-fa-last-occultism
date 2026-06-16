@@ -48,8 +48,10 @@ public class MagicAnime : MonoBehaviour
     
     void Update()
     {
-        if(Global_GameManager.Instance.state != State.Gaming && 
-        Global_GameManager.Instance.state != State.NoDead) return;
+        if(Global_GameManager.Instance != null && 
+        Global_GameManager.Instance.state != State.Gaming && 
+        Global_GameManager.Instance.state != State.NoDead &&
+        Global_GameManager.Instance.state != State.SpellCard) return;
         if (!isExiting && Input.GetKeyUp(KeyCode.LeftShift))
         {
             CancelMagic(Global_GameManager.Instance.state);
@@ -83,7 +85,7 @@ public class MagicAnime : MonoBehaviour
     /// <summary>
     /// 初始化所有连线
     /// </summary>
-    private void InitLines()
+    public void InitLines()
     {
         // 先清理旧连线
         ClearLines();
@@ -97,7 +99,7 @@ public class MagicAnime : MonoBehaviour
     /// <summary>
     /// 清理所有连线
     /// </summary>
-    private void ClearLines()
+    public void ClearLines()
     {
         foreach (var kvp in linePairs)
         {
