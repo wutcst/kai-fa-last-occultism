@@ -265,7 +265,7 @@ public class PlayerAnime : MonoBehaviour
     /// <summary>
     /// 开始判定点动画
     /// </summary>
-    private void StartPandingAnime()
+    public void StartPandingAnime()
     {
         // 播放判定点动画
         PandingdianAnimator.SetBool("IsShift", true);

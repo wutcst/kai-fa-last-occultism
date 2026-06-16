@@ -10,13 +10,18 @@ public class SpellCardEffect : MonoBehaviour
 {
     [Header("4种符卡攻击设置")]
     public List<GameObject> effects;// 总共四种符卡特效——灵梦常规，灵梦决死，魔理沙常规，魔理沙决死
-    private int EffectIndex = 0;
 
     [Header("4个子脚本引用")]
     public ReimuNormal reimuNormal; // 灵梦常规技能脚本
     public ReimuSuper reimuSuper;   // 灵梦决死技能脚本
     public MarisaNormal marisaNormal; // 魔理沙常规技能脚本
     public MarisaSuper marisaSuper;   // 魔理沙决死技能脚本
+    
+    [Header("4个技能空物体引用")]
+    public GameObject reimuNormalObject; // 灵梦常规技能空物体
+    public GameObject reimuSuperObject;   // 灵梦决死技能空物体
+    public GameObject marisaNormalObject; // 魔理沙常规技能空物体
+    public GameObject marisaSuperObject;   // 魔理沙决死技能空物体
 
     [Header("音效设置")]
     public AudioClip BeHitClip;//中弹音效clip
@@ -25,6 +30,8 @@ public class SpellCardEffect : MonoBehaviour
     [Header("脚本引用")]
     public ClearAllBullet clearAllBullet;
     public CardsRotate cardsRotate; // 引用CardsRotate脚本
+    public Graze graze; // 引用Graze脚本
+    public PlayerAnime playerAnime; // 引用PlayerAnime脚本
 
     [Header("物体引用")]
     public GameObject player;// 玩家物体
@@ -47,7 +54,7 @@ public class SpellCardEffect : MonoBehaviour
 
     void Update()
     {
-        if (Global_GameManager.Instance.state == State.Stop)
+        if (Global_GameManager.Instance.state == State.Pause)
         {
             return;
         }
@@ -100,8 +107,12 @@ public class SpellCardEffect : MonoBehaviour
 
         if (Global_GameManager.Instance.character == Character.Reimu)
         {
-            EffectIndex = 1;
             Debug.Log("释放灵梦常规技能");
+            // 激活灵梦常规技能空物体
+            if (reimuNormalObject != null)
+            {
+                reimuNormalObject.SetActive(true);
+            }
             // 激活灵梦常规技能脚本
             if (reimuNormal != null)
             {
@@ -110,8 +121,12 @@ public class SpellCardEffect : MonoBehaviour
         }
         else if (Global_GameManager.Instance.character == Character.Marisa)
         {
-            EffectIndex = 3;
             Debug.Log("释放魔理沙常规技能");
+            // 激活魔理沙常规技能空物体
+            if (marisaNormalObject != null)
+            {
+                marisaNormalObject.SetActive(true);
+            }
             // 激活魔理沙常规技能脚本
             if (marisaNormal != null)
             {
@@ -126,6 +141,11 @@ public class SpellCardEffect : MonoBehaviour
     public void ReleaseSpecialSpellCard()
     {
         Debug.Log("释放了特殊技能");
+        // 强制停止擦弹音效
+        if (graze != null)
+        {
+            graze.ForceStopGrazeSound();
+        }
         // 取消受击延迟
         if (hitDelayCoroutine != null)
         {
@@ -139,8 +159,12 @@ public class SpellCardEffect : MonoBehaviour
 
         if (Global_GameManager.Instance.character == Character.Reimu)
         {
-            EffectIndex = 2;
             Debug.Log("释放了灵梦决死技能");
+            // 激活灵梦决死技能空物体
+            if (reimuSuperObject != null)
+            {
+                reimuSuperObject.SetActive(true);
+            }
             // 激活灵梦决死技能脚本
             if (reimuSuper != null)
             {
@@ -149,8 +173,12 @@ public class SpellCardEffect : MonoBehaviour
         }
         else if (Global_GameManager.Instance.character == Character.Marisa)
         {
-            EffectIndex = 4;
             Debug.Log("释放了魔理沙决死技能");
+            // 激活魔理沙决死技能空物体
+            if (marisaSuperObject != null)
+            {
+                marisaSuperObject.SetActive(true);
+            }
             // 激活魔理沙决死技能脚本
             if (marisaSuper != null)
             {
@@ -200,7 +228,7 @@ public class SpellCardEffect : MonoBehaviour
     {
         yield return new WaitForSecondsRealtime(hitDelayTime);
 
-        if (isHitDelayActive)
+        if (isHitDelayActive && Global_GameManager.Instance.state != State.NoDead)
         {
             Time.timeScale = 1f;
             if (BeHitClip != null)
@@ -223,12 +251,109 @@ public class SpellCardEffect : MonoBehaviour
     public void OnChildAnimationEnd(int skillType)
     {
         isAnimating = false;
-        EffectIndex = 0;
 
         // 解除无敌状态
         Global_GameManager.Instance.state = State.Gaming;
 
+        // 检测玩家按键状态并重置动画状态
+        ResetPlayerAnimationState();
+
+        // 禁用对应技能空物体
+        switch (skillType)
+        {
+            case 1: // 灵梦常规
+                if (reimuNormalObject != null)
+                {
+                    reimuNormalObject.SetActive(false);
+                }
+                break;
+            case 2: // 灵梦决死
+                if (reimuSuperObject != null)
+                {
+                    reimuSuperObject.SetActive(false);
+                }
+                break;
+            case 3: // 魔理沙常规
+                if (marisaNormalObject != null)
+                {
+                    marisaNormalObject.SetActive(false);
+                }
+                break;
+            case 4: // 魔理沙决死
+                if (marisaSuperObject != null)
+                {
+                    marisaSuperObject.SetActive(false);
+                }
+                break;
+        }
+
         Debug.Log($"技能 {skillType} 动画结束");
+    }
+
+    /// <summary>
+    /// 重置玩家动画状态
+    /// 检测当前按键状态并更新玩家动画
+    /// </summary>
+    private void ResetPlayerAnimationState()
+    {
+        if (player != null)
+        {
+            PlayerAnime playerAnime = player.GetComponent<PlayerAnime>();
+            GunAnime gunAnime = player.GetComponent<GunAnime>();
+            
+            if (playerAnime != null)
+            {
+                // 检测左shift按键状态
+                bool isShiftPressed = Input.GetKey(KeyCode.LeftShift);
+                
+                // 重置魔理沙的移速和动画状态
+                if (Global_GameManager.Instance.character == Character.Marisa)
+                {
+                    // 重置技能减速状态
+                    MarisaNormal.IsSkillSlowDown = false;
+                    
+                    // 根据shift按键状态设置移速和动画
+                    if (isShiftPressed)
+                    {
+                        // 低速态
+                        playerAnime.SetMoveSpeed(playerAnime.MoveSpeed * 0.4f);
+                        playerAnime.StartPandingAnime();
+                    }
+                    else
+                    {
+                        // 快速态
+                        playerAnime.SetMoveSpeed(playerAnime.MoveSpeed);
+                        playerAnime.StopPandingAnime();
+                    }
+                }
+            }
+            
+            // 重置GunAnime状态
+            if (gunAnime != null && Global_GameManager.Instance.character == Character.Marisa)
+            {
+                // 检测左shift按键状态
+                bool isShiftPressed = Input.GetKey(KeyCode.LeftShift);
+                
+                // 重置魔法状态
+                gunAnime.isExitingMagic = false;
+                
+                // 根据shift按键状态切换武器
+                if (isShiftPressed)
+                {
+                    // 按下shift，切换到七曜魔法态
+                    gunAnime.Index = 2;
+                }
+                else
+                {
+                    // 未按下shift，切换到魔理沙常态
+                    gunAnime.Index = 1;
+                }
+                
+                // 执行武器切换
+                gunAnime.SwitchGun();
+                gunAnime.UpdateGunPos();
+            }
+        }
     }
 
     /// <summary>
