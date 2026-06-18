@@ -4,8 +4,11 @@ using UnityEngine;
 
 public class PanDing : MonoBehaviour
 {
+    public FreezeSystem freezeSystem; // 冻结系统引用
     public ClearAllBullet clearAllBullet;// 清除所有子弹组件
     public SpellCardEffect spellCardEffect;// 符卡效果组件
+
+    private const float ICE_CLOUD_FROZEN_DEGREE_INCREASE = 0.01f; // 每次碰撞冰云增加的冻结度
 
     /// <summary>
     /// 触发器检测
@@ -15,13 +18,20 @@ public class PanDing : MonoBehaviour
         if(Global_GameManager.Instance.state == State.Gaming)
         {
             // 确保只对敌人和敌人子弹生效
-            if(collision.CompareTag("Enemy") || collision.CompareTag("EnemyBullet"))
+            if(collision.CompareTag("Enemy") || collision.CompareTag("EnemyBullet") ||
+             collision.CompareTag("BossBullet") || collision.CompareTag("Terrain"))
             {
+                Debug.Log($"玩家碰撞到{collision.name}");
+                // 检查是否开启作弊模式
+                if(Global_GameManager.Instance.isCheheat)
+                {
+                    // 作弊模式下不处理受击
+                    return;
+                }
                 // 检查是否处于无敌状态
                 if (spellCardEffect != null && Global_GameManager.Instance.state == State.NoDead)
                 {
                     // 无敌状态下不处理受击
-                    clearAllBullet.ClearScreenBullet();
                     return;
                 }
                 
@@ -36,6 +46,15 @@ public class PanDing : MonoBehaviour
                     Global_GameManager.Instance.SubLeftLife();
                 }
                 clearAllBullet.ClearScreenBullet();
+            }
+            // 处理冰云碰撞（玩家不会受伤，但冻结度会增加）
+            if(collision.CompareTag("IceCloud"))
+            {
+                // 增加冻结度
+                if (freezeSystem != null)
+                {
+                    freezeSystem.IncreaseFrozenDegree(ICE_CLOUD_FROZEN_DEGREE_INCREASE);
+                }
             }
         }  
     }

@@ -8,6 +8,13 @@ TagManager:
   - Item
   - EnemyBullet
   - PlayerBullet
+  - BossBullet
+  - IceCloud
+  - Terrain
+  - Boss
+  - FrozenBall
+  - FrozenIce
+  - MiniBall
   layers:
   - Default
   - TransparentFX
