@@ -13,8 +13,9 @@ public enum Character
 }
 public enum State
 {
-    Menu,CharacterChoose,ModeChoose,Gaming,Stop,Loading,Over,
-    Replay,Option,MusicRoom,Manual,Reincarnation,NoDead
+    Menu,CharacterChoose,ModeChoose,Gaming,Pause,Loading,Over,
+    Replay,Option,MusicRoom,Manual,Reincarnation,NoDead,TimeStop,
+    SpellCard,Dialog
 }
 
 /// <summary>
@@ -235,7 +236,7 @@ public class Global_GameManager : Singleton<Global_GameManager>
     public void ResetGameDate()
     {  
         // 从JSON配置文件读取初始数据
-        string jsonFilePath = System.IO.Path.Combine(Application.dataPath, "Touho/JSON", "Game1_ResetConfig.json");
+        string jsonFilePath = System.IO.Path.Combine(Application.dataPath, "Resources/Touho/JSON", "Game1_ResetConfig.json");
         if (System.IO.File.Exists(jsonFilePath))
         {
             try
