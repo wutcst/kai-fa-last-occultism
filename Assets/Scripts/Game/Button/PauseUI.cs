@@ -8,6 +8,7 @@ public class PauseUI : MonoBehaviour
     private string currentBGMName = "";
     private float currentBGMPosition = 0f;
     public GameObject PausePanel;
+    private State pastState;
    void Update()
     {
         CheckInput();
@@ -32,7 +33,8 @@ public class PauseUI : MonoBehaviour
     {
         isPaused = true;
         Time.timeScale = 0;
-        Global_GameManager.Instance.state = State.Stop;
+        pastState = Global_GameManager.Instance.state;
+        Global_GameManager.Instance.state = State.Pause;
         
         // ¼ÇÂ¼µ±Ç°BGM×´Ì¬
         if(Global_AudioManager.Instance != null)
@@ -50,7 +52,7 @@ public class PauseUI : MonoBehaviour
 
     public void Resume()
     {
-        Global_GameManager.Instance.state = State.Gaming;
+        Global_GameManager.Instance.state = pastState;
 
         isPaused = false;
         Time.timeScale = 1;
