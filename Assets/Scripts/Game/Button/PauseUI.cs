@@ -31,6 +31,12 @@ public class PauseUI : MonoBehaviour
 
     private void Pause()
     {
+        // 检查是否处于时停状态，时停期间不允许暂停
+        if (Global_GameManager.Instance.state == State.TimeStop)
+        {
+            return;
+        }
+        
         isPaused = true;
         Time.timeScale = 0;
         pastState = Global_GameManager.Instance.state;

@@ -10,7 +10,7 @@ public class ReimuNormal : MonoBehaviour
 {
     [Header("播放控制")]
     public bool IsAnime = false; // 设置为true开始播放动画
-    private Animator animator; // 子物体上的动画组件
+    public Animator animator; // 子物体上的动画组件
     
     [Header("脚本引用")]
     public SpellCardEffect spellCardEffect; // 引用父物体的SpellCardEffect脚本
@@ -20,6 +20,9 @@ public class ReimuNormal : MonoBehaviour
     [Header("音效设置")]
     public AudioClip ReimuNormalClip;//灵梦常规音效clip
     public AudioClip FireClip;//火焰音效clip
+
+    [Header("boss对象")]
+    public GameObject boss; // Boss对象
     
     [Header("伤害设置")]
     private readonly int ReimuFireDamage = 50;// 灵梦常规伤害(实际出伤*15)
@@ -28,22 +31,15 @@ public class ReimuNormal : MonoBehaviour
     private int Timer = 20;// 定时器，用于技能出伤
     private bool isDamage = false;// 是否正在出伤
     
-    void Awake()
-    {
-        // 获取子物体上的Animator组件
-        animator = GetComponent<Animator>();
-        if (animator == null)
-        {
-            Debug.LogWarning($"[{gameObject.name}] 未找到Animator组件");
-        }
-    }
-    
     void OnEnable()
     {
         // 重置状态
         IsAnime = false;
         isDamage = false;
         Timer = 20;
+        Global_GameManager.Instance.state = State.SpellCard;
+        // 对Boss造成伤害
+        ReimuNormalDamageToBoss();
     }
     
     void Update()
@@ -54,7 +50,6 @@ public class ReimuNormal : MonoBehaviour
             // 设置Animator的IsAnime参数
             animator.SetBool("IsAnime", IsAnime);
         }
-        
         // 如果正在播放，处理出伤逻辑
         if (IsAnime)
         {
@@ -104,6 +99,22 @@ public class ReimuNormal : MonoBehaviour
                 {
                     enemy.GetComponent<Enemy>().Damage(ReimuFireDamage);
                 }
+            }
+        }
+    }
+    
+    /// <summary>
+    /// 灵梦常规对Boss发送技能攻击通知
+    /// </summary>
+    private void ReimuNormalDamageToBoss()
+    {
+        if (boss != null && boss.activeInHierarchy)
+        {
+            BossBase bossBase = boss.GetComponent<BossBase>();
+            if (bossBase != null)
+            {
+                // 发送技能攻击通知，不直接造成伤害，让Boss有机会规避
+                bossBase.OnPlayerSkillAttack(1); // 1表示灵梦常规
             }
         }
     }
@@ -169,6 +180,12 @@ public class ReimuNormal : MonoBehaviour
     /// </summary>
     public void OnAnimationEnd()
     {
+        Global_GameManager.Instance.SetNoDead(0.1f,State.Gaming);
+        BossBase bossBase = boss.GetComponent<BossBase>();
+        if (bossBase != null)
+        {
+            bossBase.DefenseEnd(); // 关闭防御屏障
+        }
         IsAnime = false;
         isDamage = false;
         

@@ -15,7 +15,7 @@ public enum State
 {
     Menu,CharacterChoose,ModeChoose,Gaming,Pause,Loading,Over,
     Replay,Option,MusicRoom,Manual,Reincarnation,NoDead,TimeStop,
-    SpellCard,Dialog
+    SpellCard,Dialog,Frozen
 }
 
 /// <summary>
@@ -54,8 +54,10 @@ public class Global_GameManager : Singleton<Global_GameManager>
     public int Score;            // 得分数
     public int HighestScore;     // 最高得分数
     public int SceneLevel;       // 关卡等级
+    public float SpeedScale = 1f;//速度缩放比例（冰冻系统相关）
 
     public State state;      // 状态机
+    private State previousState; // 用于记录设置无敌前的状态
 
     [Header("敌人管理")]
     public List<GameObject> EnemyList = new(); // 存储当前场景中的敌人
@@ -65,6 +67,7 @@ public class Global_GameManager : Singleton<Global_GameManager>
     public AudioClip BombUpClip;//残B数增加音效
 
     int pastPower = 0;//上一次灵力值，用于判断是否需要播放音效
+    public bool isCheheat = false;//是否开启作弊模式
 
 /// <summary>
 /// 事件系统
@@ -94,13 +97,15 @@ public class Global_GameManager : Singleton<Global_GameManager>
         HpPiece = 0;                  // 残机碎片数
         BombCount = 2;                // 残B数
         BombPiece = 0;                // 残B碎片数
-        Power = Mathf.Clamp(100,0,400); // 灵力值
+        Power = Mathf.Clamp(100,100,400); // 灵力值
         Grade = 0;                    // 得点
         Graze = 0;                    // 擦弹数
         Score = 0;                    // 得分数
         HighestScore = PlayerPrefs.GetInt("HighestScore", 0); // 最高得分数
         SceneLevel = 1;               // 关卡等级（第几面）
+        SpeedScale = 1f;              //速度缩放比例（冰冻系统相关）
         state = State.Gaming;         // 状态机（初始为Loading）
+        isCheheat = false;            //是否开启作弊模式
     }
 
     public void AddScore(int score = 1)
@@ -126,10 +131,10 @@ public class Global_GameManager : Singleton<Global_GameManager>
 
     public void SubPower(int count=1)
     {
-        if(Power>0)
+        if(Power>100)
         {
             Power -= count;
-            Power = Mathf.Clamp(Power,0,400);
+            Power = Mathf.Clamp(Power,100,400);
             OnPowerChanged?.Invoke(Power);
         }
     }
@@ -229,6 +234,16 @@ public class Global_GameManager : Singleton<Global_GameManager>
         OnGrazeChanged?.Invoke(Graze);
     }
 
+    public void SetSpeedScale(float scale)
+    {
+        SpeedScale = scale;
+    }
+
+    public float GetSpeedScale()
+    {
+        return SpeedScale;
+    }
+
     /// <summary>
     /// 重置游戏数据
     /// 从JSON配置文件读取初始数据，保留当前机体和难度
@@ -299,6 +314,7 @@ public class Global_GameManager : Singleton<Global_GameManager>
         Graze = 0;
         Score = 0;
         SceneLevel = 1;
+        SpeedScale = 1f;
         state = State.Gaming;
     }
 
@@ -339,5 +355,30 @@ public class Global_GameManager : Singleton<Global_GameManager>
             }
         }
         EnemyList.Clear();
+    }
+    
+    /// <summary>
+    /// 设置无敌状态
+    /// </summary>
+    /// <param name="time">无敌持续时间（秒）</param>
+    public void SetNoDead(float time,State thestate)
+    {
+        // 记录当前状态
+        previousState = thestate;
+        // 设置为无敌状态
+        state = State.NoDead;
+        // 启动协程，在指定时间后恢复之前的状态
+        StartCoroutine(RecoverStateAfterTime(time));
+    }
+    
+    /// <summary>
+    /// 在指定时间后恢复之前的状态
+    /// </summary>
+    /// <param name="time">等待时间（秒）</param>
+    private IEnumerator RecoverStateAfterTime(float time)
+    {
+        yield return new WaitForSeconds(time);
+        // 恢复之前的状态
+        state = previousState;
     }
 } 

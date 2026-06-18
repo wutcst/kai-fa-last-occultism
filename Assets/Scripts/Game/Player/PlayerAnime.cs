@@ -11,6 +11,8 @@ enum AnimeType
     Right,
 }
 
+
+
 public class PlayerAnime : MonoBehaviour
 {
     [Header("精灵列表")]
@@ -39,6 +41,7 @@ public class PlayerAnime : MonoBehaviour
     [Header("移动参数")]
     [Header("玩家移动速度")]
     public float MoveSpeed = 5f;// 玩家移动速度
+    private float movespeed;
 
     [Header("状态")]
     private AnimeType _currentAnimeType = AnimeType.Idle;// 当前动画类型
@@ -74,6 +77,18 @@ public class PlayerAnime : MonoBehaviour
     // 引用碰撞脚本
     public PlayerCollision playerCollision;
 
+    [Header("冻结相关")]
+    public GameObject Ice; // 冰冻效果物体
+
+    // QTE相关常量
+    private const int QTE_TARGET_COUNT = 12; // 需要完成的QTE次数
+    private const float QTE_TIME_LIMIT = 0.2f; // QTE按键间隔限制（秒）
+
+    // QTE相关变量
+    private int qteCurrentCount = 0; // 当前QTE计数
+    private float qteLastPressTime = -1f; // 上一次按键时间
+    private bool isQteActive = false; // QTE是否激活
+
     void OnEnable()
     {
         // 初始化精灵列表
@@ -90,6 +105,7 @@ public class PlayerAnime : MonoBehaviour
         {
             playerCollision = GetComponent<PlayerCollision>();
         }
+        movespeed = MoveSpeed;
         Global_GameManager.Instance.OnReincarnation += ReincarnationAnime;
     }
 
@@ -134,11 +150,21 @@ public class PlayerAnime : MonoBehaviour
         {
             return;
         }
+        
+        // 处理冻结状态的QTE
+        if(Global_GameManager.Instance.state == State.Frozen)
+        {
+            HandleFrozenQTE();
+            return;
+        }
+        
         HandleAnimation();
         
         // 只有在游戏状态、无敌状态、时间停止状态、符卡状态时才处理输入
         if(Global_GameManager.Instance.state == State.Gaming || 
-           Global_GameManager.Instance.state == State.NoDead)
+           Global_GameManager.Instance.state == State.NoDead ||
+           Global_GameManager.Instance.state == State.TimeStop ||
+           Global_GameManager.Instance.state == State.SpellCard)
         {
             // 检查输入
             CheckInput();
@@ -217,22 +243,30 @@ public class PlayerAnime : MonoBehaviour
         // 检测shift键状态
         if (Input.GetKeyDown(KeyCode.LeftShift))
         {
-            // 移动速度减半
-            MoveSpeed *= 0.4f;
-            // 显示判定点并开始动画
-            StartPandingAnime();
+            // 检查是否处于技能的slowdown状态
+            if (!MarisaNormal.IsSkillSlowDown)
+            {
+                // 移动速度减半
+                movespeed *= 0.4f;
+                // 显示判定点并开始动画
+                StartPandingAnime();
+            }
         }
         else if (Input.GetKeyUp(KeyCode.LeftShift))
         {
-            // 恢复正常移动速度
-            MoveSpeed = 5f;
-            // 隐藏判定点并停止动画
-            StopPandingAnime();
+            // 检查是否处于技能的slowdown状态
+            if (!MarisaNormal.IsSkillSlowDown)
+            {
+                // 恢复正常移动速度
+                movespeed = MoveSpeed;
+                // 隐藏判定点并停止动画
+                StopPandingAnime();
+            }
         }
         // 将移动状态传递给碰撞脚本
         if (playerCollision != null)
         {
-            playerCollision.UpdateMovement(leftKeyPressed, rightKeyPressed, upKeyPressed, downKeyPressed, MoveSpeed);
+            playerCollision.UpdateMovement(leftKeyPressed, rightKeyPressed, upKeyPressed, downKeyPressed, movespeed);
         }
     }
 
@@ -282,7 +316,7 @@ public class PlayerAnime : MonoBehaviour
     /// <summary>
     /// 停止判定点动画
     /// </summary>
-    private void StopPandingAnime()
+    public void StopPandingAnime()
     {
         // 停止判定点动画
         PandingdianAnimator.SetBool("IsShift", false);
@@ -526,11 +560,11 @@ public class PlayerAnime : MonoBehaviour
         Global_GameManager.Instance.state = State.NoDead;
         if(Input.GetKey(KeyCode.LeftShift))
         {
-            MoveSpeed = 2.5f;
+            movespeed = MoveSpeed * 0.5f;
         }
         else
         {
-            MoveSpeed = 5f;
+            movespeed = MoveSpeed;
         }
         Invoke(nameof(NoDeadEnd),1f);
     }
@@ -538,5 +572,100 @@ public class PlayerAnime : MonoBehaviour
     private void NoDeadEnd()
     {
         Global_GameManager.Instance.state = State.Gaming;
+    }
+
+    public void SetMoveSpeed(float speed)
+    {
+        movespeed = speed;
+    }
+
+    /// <summary>
+    /// 处理冻结状态的QTE
+    /// </summary>
+    private void HandleFrozenQTE()
+    {
+        if (!isQteActive) return;
+        
+        float currentTime = Time.time;
+        
+        // 检测左右键按下
+        if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow))
+        {
+            // 检查是否在时间限制内
+            if (qteLastPressTime < 0 || (currentTime - qteLastPressTime) <= QTE_TIME_LIMIT)
+            {
+                // 有效按键
+                qteCurrentCount++;
+                qteLastPressTime = currentTime;
+                
+                // 检查是否完成QTE
+                if (qteCurrentCount >= QTE_TARGET_COUNT)
+                {
+                    CompleteQTE();
+                }
+            }
+            else
+            {
+                // 超时，重置计数
+                qteCurrentCount = 1;
+                qteLastPressTime = currentTime;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 激活冻结QTE
+    /// </summary>
+    public void ActivateFrozenQTE()
+    {
+        isQteActive = true;
+        qteCurrentCount = 0;
+        qteLastPressTime = -1f;
+        
+        // 激活Ice物体
+        if (Ice != null)
+        {
+            Ice.SetActive(true);
+        }
+    }
+
+    /// <summary>
+    /// 完成QTE
+    /// </summary>
+    private void CompleteQTE()
+    {
+        isQteActive = false;
+        
+        // 禁用Ice物体
+        if (Ice != null)
+        {
+            Ice.SetActive(false);
+        }
+        
+        // 重置冻结系统
+        FreezeSystem freezeSystem = FindObjectOfType<FreezeSystem>();
+        if (freezeSystem != null)
+        {
+            freezeSystem.ResetFreeze();
+        }
+        
+        // 恢复游戏状态
+        Global_GameManager.Instance.state = State.Gaming;
+    }
+
+    /// <summary>
+    /// 获取当前QTE进度
+    /// </summary>
+    public int GetQTEProgress()
+    {
+        return qteCurrentCount;
+    }
+
+    /// <summary>
+    /// 获取QTE目标次数
+    /// </summary>
+    public int GetQTETargetCount()
+    {
+        return QTE_TARGET_COUNT;
     }
 }
