@@ -8,6 +8,7 @@ public class PauseUI : MonoBehaviour
     private string currentBGMName = "";
     private float currentBGMPosition = 0f;
     public GameObject PausePanel;
+    private State pastState;
    void Update()
     {
         CheckInput();
@@ -15,7 +16,8 @@ public class PauseUI : MonoBehaviour
 
     private void CheckInput()
     {
-        if(Input.GetKeyDown(KeyCode.Escape))
+        if(Input.GetKeyDown(KeyCode.Escape) && 
+        Global_GameManager.Instance.state != State.Over)
         {
             if(!isPaused)
             {
@@ -30,9 +32,16 @@ public class PauseUI : MonoBehaviour
 
     private void Pause()
     {
+        // 检查是否处于时停状态，时停期间不允许暂停
+        if (Global_GameManager.Instance.state == State.TimeStop)
+        {
+            return;
+        }
+        
         isPaused = true;
         Time.timeScale = 0;
-        Global_GameManager.Instance.state = State.Stop;
+        pastState = Global_GameManager.Instance.state;
+        Global_GameManager.Instance.state = State.Pause;
         
         // 记录当前BGM状态
         if(Global_AudioManager.Instance != null)
@@ -50,7 +59,7 @@ public class PauseUI : MonoBehaviour
 
     public void Resume()
     {
-        Global_GameManager.Instance.state = State.Gaming;
+        Global_GameManager.Instance.state = pastState;
 
         isPaused = false;
         Time.timeScale = 1;

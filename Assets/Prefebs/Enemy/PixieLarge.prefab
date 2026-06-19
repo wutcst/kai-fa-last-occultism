@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 2558137532123596938}
   - component: {fileID: 8529169561834577298}
   - component: {fileID: 4627697394680479136}
+  - component: {fileID: -4443161721027342030}
   m_Layer: 9
   m_Name: PixieLarge
   m_TagString: Enemy
@@ -99,28 +100,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1b703dd142487e642810507d508655cf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  Hp: 1500
+  MoveSpeed: 5
+  moveMode: 3
+  secondaryMoveMode: 2
+  ArrivalDistance: 0.1
+  FlickerLifeTime: 8
+  fadeTime: 3
+  gravityScale: 0.12
   EnemySprites:
   - {fileID: -2098667174, guid: 304a01e02c3d522449a2258535534366, type: 3}
   - {fileID: 1082429417, guid: 304a01e02c3d522449a2258535534366, type: 3}
   - {fileID: -1297326038, guid: 304a01e02c3d522449a2258535534366, type: 3}
   - {fileID: 1601832033, guid: 304a01e02c3d522449a2258535534366, type: 3}
   - {fileID: 610018286, guid: 304a01e02c3d522449a2258535534366, type: 3}
-  - {fileID: 1594186717, guid: 304a01e02c3d522449a2258535534366, type: 3}
-  - {fileID: 809004407, guid: 304a01e02c3d522449a2258535534366, type: 3}
-  - {fileID: 230728719, guid: 304a01e02c3d522449a2258535534366, type: 3}
-  - {fileID: -4353869, guid: 304a01e02c3d522449a2258535534366, type: 3}
-  - {fileID: 1153972691, guid: 304a01e02c3d522449a2258535534366, type: 3}
-  - {fileID: 654753471, guid: 304a01e02c3d522449a2258535534366, type: 3}
-  - {fileID: 809004407, guid: 304a01e02c3d522449a2258535534366, type: 3}
   _currentIndex: 0
   AnimeSpeed: 4
-  _currentDir: 0
-  moveMode: 2
-  secondaryMoveMode: 2
-  MoveSpeed: 5
-  ArrivalDistance: 0.1
-  gravityScale: 0.12
-  fadeTime: 3
+  bezierSpeed: 1
 --- !u!60 &8529169561834577298
 PolygonCollider2D:
   m_ObjectHideFlags: 0
@@ -200,3 +196,16 @@ Rigidbody2D:
   m_SleepingMode: 1
   m_CollisionDetection: 0
   m_Constraints: 4
+--- !u!114 &-4443161721027342030
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4357197549038363353}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26c1759b2c518e04cad579fc26ea4d10, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  shootConfigs: []

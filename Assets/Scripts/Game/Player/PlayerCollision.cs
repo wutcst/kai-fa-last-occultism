@@ -2,6 +2,9 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// 玩家碰撞触发器
+/// </summary>
 public class PlayerCollision : MonoBehaviour
 {
     private Rigidbody2D rb2D;// 刚体组件
@@ -26,9 +29,31 @@ public class PlayerCollision : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if(Global_GameManager.Instance.state != State.Gaming) return;
-        // 处理边界检测
-        HandleBounds();
+        // 确保rb2D已获取
+        if (rb2D == null)
+        {
+            rb2D = GetComponent<Rigidbody2D>();
+            if (rb2D == null)
+            {
+                Debug.LogError("PlayerCollision: 找不到刚体组件！");
+                return;
+            }
+        }
+        
+        // 处理不同状态
+        if(Global_GameManager.Instance.state == State.Gaming || 
+           Global_GameManager.Instance.state == State.NoDead ||
+           Global_GameManager.Instance.state == State.SpellCard)   
+        {
+            // 处理边界检测
+            HandleBounds();
+        }
+        else if(Global_GameManager.Instance.state == State.Reincarnation ||
+                Global_GameManager.Instance.state == State.Frozen)
+        {
+            // 重生状态或冻结状态时，设置速度为0
+            rb2D.velocity = Vector2.zero;
+        }
     }
 
     /// <summary>
@@ -41,6 +66,23 @@ public class PlayerCollision : MonoBehaviour
     /// <param name="moveSpeed">移动速度</param>
     public void UpdateMovement(bool leftPressed, bool rightPressed, bool upPressed, bool downPressed, float moveSpeed)
     {
+        // 只有在游戏状态、无敌状态和符卡状态时才处理移动
+        // 冻结状态下禁止移动
+        if(Global_GameManager.Instance.state != State.Gaming && 
+           Global_GameManager.Instance.state != State.NoDead &&
+           Global_GameManager.Instance.state != State.SpellCard) return;
+        
+        // 确保rb2D已获取
+        if (rb2D == null)
+        {
+            rb2D = GetComponent<Rigidbody2D>();
+            if (rb2D == null)
+            {
+                Debug.LogError("PlayerCollision: 找不到刚体组件，无法应用移动！");
+                return;
+            }
+        }
+        
         // 计算水平移动方向
         float horizontal = 0f;
         if (leftPressed)
@@ -78,10 +120,29 @@ public class PlayerCollision : MonoBehaviour
         }
 
         // 应用移动
-        if (rb2D != null)
+        rb2D.velocity = moveDirection * speed * Global_GameManager.Instance.GetSpeedScale();
+    }
+
+    /// <summary>
+    /// 强行停止玩家移动
+    /// 即使玩家还按着方向键，也会立即停止
+    /// </summary>
+    public void StopMove()
+    {
+        // 确保rb2D已获取
+        if (rb2D == null)
         {
-            rb2D.velocity = moveDirection * speed;
+            rb2D = GetComponent<Rigidbody2D>();
+            if (rb2D == null)
+            {
+                Debug.LogError("PlayerCollision: 找不到刚体组件，无法停止移动！");
+                return;
+            }
         }
+        
+        // 将速度设为0，停止移动
+        rb2D.velocity = Vector2.zero;
+        moveDirection = Vector2.zero;
     }
 
     /// <summary>
@@ -89,8 +150,12 @@ public class PlayerCollision : MonoBehaviour
     /// </summary>
     private void HandleBounds()
     {
-
-
+        // 只有在游戏状态和无敌状态时才处理边界检测
+        if(Global_GameManager.Instance.state != State.Gaming && 
+           Global_GameManager.Instance.state != State.NoDead &&
+           Global_GameManager.Instance.state != State.SpellCard &&
+           Global_GameManager.Instance.state != State.Dialog) return;
+        
         // 获取当前位置
         Vector3 position = transform.position;
 
@@ -114,15 +179,5 @@ public class PlayerCollision : MonoBehaviour
 
         // 更新位置
         transform.position = position;
-    }
-
-    /// <summary>
-    /// 触发器检测
-    /// </summary>
-    private void OnTriggerEnter2D(Collider2D collision)
-    {
-        // 处理触发器逻辑
-        Debug.Log("玩家触发: " + collision.gameObject.name);
-        
     }
 }

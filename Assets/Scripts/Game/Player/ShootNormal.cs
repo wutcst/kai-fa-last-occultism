@@ -43,7 +43,10 @@ public class ShootNormal : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if(Global_GameManager.Instance == null || Global_GameManager.Instance.state != State.Gaming) return;
+        // 冻结状态下禁止射击
+        if(Global_GameManager.Instance == null || 
+        Global_GameManager.Instance.state != State.Gaming && 
+        Global_GameManager.Instance.state != State.NoDead) return;
         
         // 确保Normal预制体已初始化
         if (Normal == null)
@@ -79,7 +82,8 @@ public class ShootNormal : MonoBehaviour
     private void Shoot()
     {
         // 只有按下Z键 + 计时器达到间隔时间 + Normal预制体不为null，才允许射击
-        if (Input.GetKey(KeyCode.Z) && shootTimer >= shootInterval && Normal != null)
+        if (Input.GetKey(KeyCode.Z) && shootTimer >= 
+        (shootInterval/Global_GameManager.Instance.GetSpeedScale()) && Normal != null)
         {
             try
             {
@@ -92,7 +96,6 @@ public class ShootNormal : MonoBehaviour
                     Global_ObjectPool.Instance.GetObject
                     (Normal, GunRight.position, Normal.transform.rotation);
                     shootTimer = 0; // 射击后重置计时器，开始冷却
-                    Debug.Log("发射两枚普通子弹");
                 }
                 else
                 {

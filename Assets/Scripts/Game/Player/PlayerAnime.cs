@@ -11,6 +11,8 @@ enum AnimeType
     Right,
 }
 
+
+
 public class PlayerAnime : MonoBehaviour
 {
     [Header("精灵列表")]
@@ -39,6 +41,7 @@ public class PlayerAnime : MonoBehaviour
     [Header("移动参数")]
     [Header("玩家移动速度")]
     public float MoveSpeed = 5f;// 玩家移动速度
+    private float movespeed;
 
     [Header("状态")]
     private AnimeType _currentAnimeType = AnimeType.Idle;// 当前动画类型
@@ -74,6 +77,19 @@ public class PlayerAnime : MonoBehaviour
     // 引用碰撞脚本
     public PlayerCollision playerCollision;
 
+    [Header("冻结相关")]
+    public FreezeSystem freezeSystem;
+    public GameObject Ice; // 冰冻效果物体
+
+    // QTE相关常量
+    private const int QTE_TARGET_COUNT = 12; // 需要完成的QTE次数
+    private const float QTE_TIME_LIMIT = 0.2f; // QTE按键间隔限制（秒）
+
+    // QTE相关变量
+    private int qteCurrentCount = 0; // 当前QTE计数
+    private float qteLastPressTime = -1f; // 上一次按键时间
+    private bool isQteActive = false; // QTE是否激活
+
     void OnEnable()
     {
         // 初始化精灵列表
@@ -90,6 +106,13 @@ public class PlayerAnime : MonoBehaviour
         {
             playerCollision = GetComponent<PlayerCollision>();
         }
+        movespeed = MoveSpeed;
+        Global_GameManager.Instance.OnReincarnation += ReincarnationAnime;
+    }
+
+    void OnDisable()
+    {
+        Global_GameManager.Instance.OnReincarnation -= ReincarnationAnime;
     }
 
     /// <summary>
@@ -122,12 +145,32 @@ public class PlayerAnime : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if(Global_GameManager.Instance.state != State.Gaming) return;
-        // 检查输入
-        CheckInput();
-        
         // 处理动画
+        if(Global_GameManager.Instance.state == State.Pause ||
+           Global_GameManager.Instance.state == State.TimeStop ||
+           Global_GameManager.Instance.state == State.FinalUI)
+        {
+            return;
+        }
+        
+        // 处理冻结状态的QTE
+        if(Global_GameManager.Instance.state == State.Frozen)
+        {
+            HandleFrozenQTE();
+            return;
+        }
+        
         HandleAnimation();
+        
+        // 只有在游戏状态、无敌状态、时间停止状态、符卡状态时才处理输入
+        if(Global_GameManager.Instance.state == State.Gaming || 
+           Global_GameManager.Instance.state == State.NoDead ||
+           Global_GameManager.Instance.state == State.TimeStop ||
+           Global_GameManager.Instance.state == State.SpellCard)
+        {
+            // 检查输入
+            CheckInput();
+        }
     }
 
     /// <summary>
@@ -202,25 +245,30 @@ public class PlayerAnime : MonoBehaviour
         // 检测shift键状态
         if (Input.GetKeyDown(KeyCode.LeftShift))
         {
-            // 移动速度减半
-            MoveSpeed = 2.5f;
-            // 显示判定点并开始动画
-            StartPandingAnime();
+            // 检查是否处于技能的slowdown状态
+            if (!MarisaNormal.IsSkillSlowDown)
+            {
+                // 移动速度减半
+                movespeed *= 0.4f;
+                // 显示判定点并开始动画
+                StartPandingAnime();
+            }
         }
         else if (Input.GetKeyUp(KeyCode.LeftShift))
         {
-            // 恢复正常移动速度
-            MoveSpeed = 5f;
-            // 隐藏判定点并停止动画
-            StopPandingAnime();
+            // 检查是否处于技能的slowdown状态
+            if (!MarisaNormal.IsSkillSlowDown)
+            {
+                // 恢复正常移动速度
+                movespeed = MoveSpeed;
+                // 隐藏判定点并停止动画
+                StopPandingAnime();
+            }
         }
-        else if(Input.GetKeyUp(KeyCode.X))
-        {Debug.Log("游戏内点击了X键");}
-        
         // 将移动状态传递给碰撞脚本
         if (playerCollision != null)
         {
-            playerCollision.UpdateMovement(leftKeyPressed, rightKeyPressed, upKeyPressed, downKeyPressed, MoveSpeed);
+            playerCollision.UpdateMovement(leftKeyPressed, rightKeyPressed, upKeyPressed, downKeyPressed, movespeed);
         }
     }
 
@@ -258,7 +306,7 @@ public class PlayerAnime : MonoBehaviour
     /// <summary>
     /// 开始判定点动画
     /// </summary>
-    private void StartPandingAnime()
+    public void StartPandingAnime()
     {
         // 播放判定点动画
         PandingdianAnimator.SetBool("IsShift", true);
@@ -270,7 +318,7 @@ public class PlayerAnime : MonoBehaviour
     /// <summary>
     /// 停止判定点动画
     /// </summary>
-    private void StopPandingAnime()
+    public void StopPandingAnime()
     {
         // 停止判定点动画
         PandingdianAnimator.SetBool("IsShift", false);
@@ -289,8 +337,6 @@ public class PlayerAnime : MonoBehaviour
         TimeClock += Time.deltaTime;
 
         // 计算当前应该显示的帧数
-        // 假设游戏运行在60帧，Time.deltaTime约为1/60秒
-        // 我们使用帧数来控制动画速度
         int currentFrame = Mathf.FloorToInt(TimeClock * 60f);
 
         // 检查是否需要切换动画帧
@@ -438,6 +484,29 @@ public class PlayerAnime : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 强行停止玩家移动
+    /// 即使玩家还按着方向键，也会立即停止
+    /// 并重置按键状态和动画
+    /// </summary>
+    public void StopMove()
+    {
+        // 重置按键状态
+        leftKeyPressed = false;
+        rightKeyPressed = false;
+        upKeyPressed = false;
+        downKeyPressed = false;
+        
+        // 切换到Idle动画
+        SetIdleAnime();
+        
+        // 调用碰撞脚本的StopMove方法停止物理移动
+        if (playerCollision != null)
+        {
+            playerCollision.StopMove();
+        }
+    }
+
     private void PanDingAnime()
     {
         Pandingdian.transform.Rotate(PandingdianRotation, PandingdianSpeed * Time.deltaTime);
@@ -449,5 +518,162 @@ public class PlayerAnime : MonoBehaviour
     private void CircleAnime()
     {
         CircleAnimator.SetBool("IsShift", isCircleAnimePlaying);
+    }
+
+    private void ReincarnationAnime(State state)
+    {
+        StopPandingAnime();
+        SetIdleAnime();
+        
+        // 立刻将玩家坐标设置为(-3,-6)，透明度设为0
+        this.transform.position = new Vector3(-3f, -6f, 0f);
+        if (spriteRenderer != null)
+        {
+            Color color = spriteRenderer.color;
+            color.a = 0f;
+            spriteRenderer.color = color;
+        }
+        
+        // 开始重生动画协程
+        StartCoroutine(ReincarnationAnimation());
+    }
+    
+    /// <summary>
+    /// 重生动画协程
+    /// </summary>
+    private IEnumerator ReincarnationAnimation()
+    {
+        float elapsedTime = 0f;
+        float duration = 1f;
+        Vector3 startPosition = new Vector3(-3f, -6f, 0f);
+        Vector3 endPosition = new Vector3(-3f, -4f, 0f);
+        float startAlpha = 0f;
+        float endAlpha = 1f;
+        
+        while (elapsedTime < duration)
+        {
+            float t = elapsedTime / duration;
+            // 移动位置
+            transform.position = Vector3.Lerp(startPosition, endPosition, t);
+            // 渐变透明度
+            if (spriteRenderer != null)
+            {
+                Color color = spriteRenderer.color;
+                color.a = Mathf.Lerp(startAlpha, endAlpha, t);
+                spriteRenderer.color = color;
+            }
+            
+            elapsedTime += Time.deltaTime;
+            yield return null;
+        }
+        
+        // 确保最终位置和透明度正确
+        transform.position = endPosition;
+        if (spriteRenderer != null)
+        {
+            Color color = spriteRenderer.color;
+            color.a = endAlpha;
+            spriteRenderer.color = color;
+        }
+        
+        // 1秒后切换到无敌状态
+        ReincarnationEnd();
+    }
+
+    private void ReincarnationEnd()
+    {
+        Global_GameManager.Instance.state = State.NoDead;
+        if(Input.GetKey(KeyCode.LeftShift))
+        {
+            movespeed = MoveSpeed * 0.5f;
+        }
+        else
+        {
+            movespeed = MoveSpeed;
+        }
+        Invoke(nameof(NoDeadEnd),1f);
+    }
+
+    private void NoDeadEnd()
+    {
+        Global_GameManager.Instance.state = State.Gaming;
+    }
+
+    public void SetMoveSpeed(float speed)
+    {
+        movespeed = speed;
+    }
+
+    /// <summary>
+    /// 处理冻结状态的QTE
+    /// </summary>
+    private void HandleFrozenQTE()
+    {
+        if (!isQteActive) return;
+        
+        float currentTime = Time.time;
+        
+        // 检测左右键按下
+        if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow))
+        {
+            // 检查是否在时间限制内
+            if (qteLastPressTime < 0 || (currentTime - qteLastPressTime) <= QTE_TIME_LIMIT)
+            {
+                // 有效按键
+                qteCurrentCount++;
+                qteLastPressTime = currentTime;
+                
+                // 检查是否完成QTE
+                if (qteCurrentCount >= QTE_TARGET_COUNT)
+                {
+                    CompleteQTE();
+                }
+            }
+            else
+            {
+                // 超时，重置计数
+                qteCurrentCount = 1;
+                qteLastPressTime = currentTime;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 激活冻结QTE
+    /// </summary>
+    public void ActivateFrozenQTE()
+    {
+        isQteActive = true;
+        qteCurrentCount = 0;
+        qteLastPressTime = -1f;
+        
+        // 激活Ice物体
+        if (Ice != null)
+        {
+            Ice.SetActive(true);
+        }
+    }
+
+    /// <summary>
+    /// 完成QTE
+    /// </summary>
+    public void CompleteQTE()
+    {
+        isQteActive = false;
+        
+        // 禁用Ice物体
+        if (Ice != null)
+        {
+            Ice.SetActive(false);
+        }
+        
+        // 重置冻结系统
+        if (freezeSystem != null)
+        {
+            freezeSystem.ResetFreeze();
+        }
+        
+        // 恢复游戏状态
+        Global_GameManager.Instance.state = State.Gaming;
     }
 }
