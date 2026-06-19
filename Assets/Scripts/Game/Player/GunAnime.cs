@@ -38,12 +38,12 @@ public class GunAnime : MonoBehaviour
         new Vector2(0.22f, 0.1f),
     };
 
-    private int Index;//0:灵梦子机 1:魔理沙子机 2:七曜魔法子机
-    private int GunNumber = 0;// 子机数量
+    public int Index;//0:灵梦子机 1:魔理沙子机 2:七曜魔法子机
+    private int GunNumber = 1;// 子机数量
 
     private bool isShifted = false;// 是否按下Shift
     public bool IsShiftedNow => isShifted;// 是否按下Shift
-    private bool isExitingMagic = false; // 是否正在退出魔法状态
+    public bool isExitingMagic = false; // 是否正在退出魔法状态
 
     void OnEnable()
     {
@@ -55,8 +55,9 @@ public class GunAnime : MonoBehaviour
         {
             Index = 1;
         }
-        SwitchGun(Index);
-        GunNumber = Global_GameManager.Instance.Power/100;
+        SwitchGun();
+        GunNumber = 1;
+        
         // 同步子机激活状态
         if (Index == 0) UpdateGuns(ReimuGuns);
         else if (Index == 1) UpdateGuns(MarisaGuns);
@@ -64,30 +65,36 @@ public class GunAnime : MonoBehaviour
 
         // 订阅灵力变更事件
         Global_GameManager.Instance.OnPowerChanged += UpdateGunNumber;
+        Global_GameManager.Instance.OnReincarnation += CancelGun;
     }
 
     void OnDisable()
     {
         Global_GameManager.Instance.OnPowerChanged -= UpdateGunNumber;
+        Global_GameManager.Instance.OnReincarnation -= CancelGun;
     }
 
     // Update is called once per frame
     void Update()
     {
-        if(Global_GameManager.Instance.state != State.Gaming) return;
+        if(Global_GameManager.Instance.state == State.Pause || 
+        Global_GameManager.Instance.state == State.FinalUI) return;
         CheckUpdate();
-        AddPower();
-        SubPower();
+        Cheat();
     }
 
-    private void SwitchGun(int index)
+    public void SwitchGun()
     {
-        switch (index)
+        switch (Index)
         {
             case 0:
+                NormalGuns[0].SetActive(true);
+                NormalGuns[1].SetActive(true);
                 ReimuGun.SetActive(true);
                 MarisaGun.SetActive(false);
                 MagicGun.SetActive(false);
+                ShootNormal.SetLimited(false);
+                UpdateGuns(ReimuGuns);
                 break;
             case 1:
                 NormalGuns[0].SetActive(true);
@@ -121,7 +128,7 @@ public class GunAnime : MonoBehaviour
             if(Index==1 && !isExitingMagic)// 如果是魔理沙常态按下Shift进入七曜态
             {
                 Index = 2;
-                SwitchGun(Index);
+                SwitchGun();
                 UpdateGunPos();
             }
         }
@@ -141,14 +148,13 @@ public class GunAnime : MonoBehaviour
     public void SwitchToMarisaNormal()
     {
         Index = 1;
-        SwitchGun(Index);
+        SwitchGun();
         UpdateGunPos();
         isExitingMagic = false;
     }
 
     private void UpdateGunNumber(int power)
     {
-        Debug.Log("触发一次火力增长与子机增减事件");
         if(GunNumber < power/100)
         {
             AddGuns();
@@ -188,7 +194,7 @@ public class GunAnime : MonoBehaviour
         UpdateGunPos();
     }
 
-    private void UpdateGunPos()
+    public void UpdateGunPos()
     {
         if(Index==0)// 灵梦子机
         {
@@ -277,20 +283,33 @@ public class GunAnime : MonoBehaviour
         }
     }
 
-    private void AddPower()
+    private void Cheat()
     {
         if(Input.GetKeyDown(KeyCode.E))
         {
-            Debug.Log("测试，Power+50");
             Global_GameManager.Instance.AddPower(50);
         }
-    }
-    private void SubPower()
-    {
         if(Input.GetKeyDown(KeyCode.Q))
         {
-            Debug.Log("测试，Power-50");
             Global_GameManager.Instance.SubPower(50);
         }
+        if (Input.GetKeyDown(KeyCode.B))
+        {
+            Global_GameManager.Instance.AddBomb(1);
+        }
+        if (Input.GetKeyDown(KeyCode.P))
+        {
+            Global_GameManager.Instance.isCheheat = !Global_GameManager.Instance.isCheheat;
+        }
+    }
+
+    private void CancelGun(State state)
+    {
+        NormalGuns[0].SetActive(false);
+        NormalGuns[1].SetActive(false);
+        ReimuGun.SetActive(false);
+        MarisaGun.SetActive(false);
+        ShootNormal.SetLimited(true);
+        Invoke(nameof(SwitchGun), 1f);
     }
 }

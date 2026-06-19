@@ -35,6 +35,7 @@ public class Global_AudioManager : Singleton<Global_AudioManager>
     private float bgmVolume = 0.70f;     // 背景音乐音量
     private float sfxVolume = 0.80f;     // 音效音量
     public float CurrentTime;
+    private Coroutine fadeOutCoroutine; // 存储淡出协程引用
 
     #endregion
 
@@ -195,17 +196,37 @@ public class Global_AudioManager : Singleton<Global_AudioManager>
             }
         }
         
-        // 如果没有可用的，创建新的
-        if (sfxPool.Count < maxSFXPoolSize)
+        // 如果没有可用的，检查是否需要扩容
+        if (sfxPool.Count < 30) // 最大容量限制为30
         {
-            AudioSource newSource = gameObject.AddComponent<AudioSource>();
-            newSource.loop = false;
-            newSource.volume = sfxVolume;
-            sfxPool.Add(newSource);
-            return newSource;
+            // 扩充maxSFXPoolSize个容量
+            int expandCount = maxSFXPoolSize;
+            int newTotalCapacity = sfxPool.Count + expandCount;
+            
+            // 确保不超过30的限制
+            if (newTotalCapacity > 30)
+            {
+                expandCount = 30 - sfxPool.Count;
+                newTotalCapacity = 30;
+            }
+            
+            // 创建新的AudioSource
+            for (int i = 0; i < expandCount; i++)
+            {
+                AudioSource newSource = gameObject.AddComponent<AudioSource>();
+                newSource.loop = false;
+                newSource.volume = sfxVolume;
+                sfxPool.Add(newSource);
+            }
+            
+            Debug.Log($"音效池扩容，新增 {expandCount} 个AudioSource，总容量: {newTotalCapacity}");
+            
+            // 返回第一个新创建的AudioSource
+            return sfxPool[sfxPool.Count - expandCount];
         }
         
-        // 如果达到最大容量，返回第一个（会覆盖正在播放的）
+        // 如果达到最大容量30，返回第一个（会覆盖正在播放的）并发出警告
+        Debug.LogError("音效池已达到最大容量30，将覆盖正在播放的音效");
         return sfxPool[0];
     }
     
@@ -237,6 +258,55 @@ public class Global_AudioManager : Singleton<Global_AudioManager>
             source.volume = Mathf.Clamp01(volume) * sfxVolume;
             source.Play();
         }
+    }
+    
+    // 收集音效计数器
+    private int collectSoundCount = 0;
+    // 收集音效最大同时播放数量
+    private const int maxCollectSoundCount = 3;
+    
+    /// <summary>
+    /// 播放收集音效（限制同时播放数量）
+    /// </summary>
+    /// <param name="clip">音效剪辑</param>
+    /// <param name="volume">音量（0-1）</param>
+    public void PlayCollectSFX(AudioClip clip, float volume = 1f)
+    {
+        if (clip == null)
+        {
+            Debug.LogWarning("收集音效剪辑为空，无法播放");
+            return;
+        }
+        
+        // 检查当前收集音效数量是否达到限制
+        if (collectSoundCount >= maxCollectSoundCount)
+        {
+            return; // 达到限制，跳过播放
+        }
+        
+        // 从音效池获取可用的AudioSource
+        AudioSource source = GetAvailableSFXSource();
+        if (source != null)
+        {
+            collectSoundCount++;
+            source.clip = clip;
+            source.loop = false;
+            source.volume = Mathf.Clamp01(volume) * sfxVolume;
+            source.Play();
+            
+            // 监听音效播放完成事件
+            StartCoroutine(MonitorCollectSound(source));
+        }
+    }
+    
+    /// <summary>
+    /// 监听收集音效播放完成
+    /// </summary>
+    /// <param name="source">音频源</param>
+    private IEnumerator MonitorCollectSound(AudioSource source)
+    {
+        yield return new WaitWhile(() => source.isPlaying);
+        collectSoundCount = Mathf.Max(0, collectSoundCount - 1);
     }
     
     #endregion
@@ -292,29 +362,7 @@ public class Global_AudioManager : Singleton<Global_AudioManager>
     }
     
     /// <summary>
-    /// 暂停背景音乐
-    /// </summary>
-    public void PauseBGM()
-    {
-        if (bgmSource != null && bgmSource.isPlaying)
-        {
-            bgmSource.Pause();
-        }
-    }
-    
-    /// <summary>
-    /// 恢复背景音乐
-    /// </summary>
-    public void ResumeBGM()
-    {
-        if (bgmSource != null && !bgmSource.isPlaying && bgmSource.time > 0f)
-        {
-            bgmSource.UnPause();
-        }
-    }
-    
-    /// <summary>
-    /// ??????????
+    /// 停止当前播放的背景音乐
     /// </summary>
     public void StopBGM()
     {
@@ -459,6 +507,79 @@ public class Global_AudioManager : Singleton<Global_AudioManager>
         if (bgmSource != null)
         {
             bgmSource.time = position;
+        }
+    }
+
+    /// <summary>
+    /// 音乐淡出
+    /// 在指定时间内将当前播放的背景音乐音量均匀降低到0
+    /// </summary>
+    /// <param name="fadeOutTime">淡出时间（秒）</param>
+    public void FadeOutMusic(float fadeOutTime)
+    {
+        if (bgmSource != null && bgmSource.isPlaying)
+        {
+            // 停止之前可能正在进行的淡出协程
+            if (fadeOutCoroutine != null)
+            {
+                StopCoroutine(fadeOutCoroutine);
+            }
+            // 启动新的淡出协程并保存引用
+            fadeOutCoroutine = StartCoroutine(FadeOutMusicCoroutine(fadeOutTime));
+        }
+    }
+    
+    /// <summary>
+    /// 音乐淡出协程
+    /// </summary>
+    /// <param name="fadeOutTime">淡出时间（秒）</param>
+    private IEnumerator FadeOutMusicCoroutine(float fadeOutTime)
+    {
+        if (fadeOutTime <= 0f)
+        {
+            // 如果淡出时间小于等于0，直接停止音乐
+            bgmSource.Stop();
+            fadeOutCoroutine = null;
+            yield break;
+        }
+        
+        float startVolume = bgmSource.volume;
+        float elapsedTime = 0f;
+        
+        while (elapsedTime < fadeOutTime)
+        {
+            elapsedTime += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsedTime / fadeOutTime);
+            bgmSource.volume = Mathf.Lerp(startVolume, 0f, t);
+            yield return null;
+        }
+        
+        // 淡出完成后停止音乐
+        bgmSource.Stop();
+        // 重置音量，以便下次播放
+        bgmSource.volume = startVolume;
+        // 重置协程引用
+        fadeOutCoroutine = null;
+    }
+    
+    /// <summary>
+    /// 停止淡出协程并清理背景音乐
+    /// </summary>
+    public void StopFadeOutAndClearBGM()
+    {
+        // 停止淡出协程
+        if (fadeOutCoroutine != null)
+        {
+            StopCoroutine(fadeOutCoroutine);
+            fadeOutCoroutine = null;
+        }
+        
+        // 停止背景音乐并重置音量
+        if (bgmSource != null)
+        {
+            bgmSource.Stop();
+            // 重置音量到默认值
+            bgmSource.volume = bgmVolume;
         }
     }
     

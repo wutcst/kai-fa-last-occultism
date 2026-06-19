@@ -33,7 +33,9 @@ public class ReimuShoot : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if(Global_GameManager.Instance.state != State.Gaming) return;
+        if(Global_GameManager.Instance != null && 
+        Global_GameManager.Instance.state != State.Gaming && 
+        Global_GameManager.Instance.state != State.NoDead) return;
         // 计时器持续累加
         shootTimer += Time.deltaTime;
         CheckShift();
@@ -56,7 +58,8 @@ public class ReimuShoot : MonoBehaviour
 
     private void ShootNeedle()
     {
-        if(Input.GetKey(KeyCode.Z) && shootTimer >= NeedleInterval)
+        if(Input.GetKey(KeyCode.Z) && shootTimer >= 
+        (NeedleInterval/Global_GameManager.Instance.GetSpeedScale()))
         {
             Global_ObjectPool.Instance.GetObject(NeedlePrefab, transform.position, NeedlePrefab.transform.rotation);
             // 重置计时器
@@ -66,7 +69,8 @@ public class ReimuShoot : MonoBehaviour
 
     private void ShootTracked()
     {
-        if(Input.GetKey(KeyCode.Z) && shootTimer >= TrackedInterval)
+        if(Input.GetKey(KeyCode.Z) && shootTimer >= 
+        (TrackedInterval/Global_GameManager.Instance.GetSpeedScale()))
         {
             Global_ObjectPool.Instance.GetObject(TrackedPrefab, transform.position, TrackedPrefab.transform.rotation);
             // 重置计时器
