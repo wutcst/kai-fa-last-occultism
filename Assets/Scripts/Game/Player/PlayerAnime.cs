@@ -78,6 +78,7 @@ public class PlayerAnime : MonoBehaviour
     public PlayerCollision playerCollision;
 
     [Header("冻结相关")]
+    public FreezeSystem freezeSystem;
     public GameObject Ice; // 冰冻效果物体
 
     // QTE相关常量
@@ -146,7 +147,8 @@ public class PlayerAnime : MonoBehaviour
     {
         // 处理动画
         if(Global_GameManager.Instance.state == State.Pause ||
-           Global_GameManager.Instance.state == State.TimeStop)
+           Global_GameManager.Instance.state == State.TimeStop ||
+           Global_GameManager.Instance.state == State.FinalUI)
         {
             return;
         }
@@ -482,6 +484,29 @@ public class PlayerAnime : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 强行停止玩家移动
+    /// 即使玩家还按着方向键，也会立即停止
+    /// 并重置按键状态和动画
+    /// </summary>
+    public void StopMove()
+    {
+        // 重置按键状态
+        leftKeyPressed = false;
+        rightKeyPressed = false;
+        upKeyPressed = false;
+        downKeyPressed = false;
+        
+        // 切换到Idle动画
+        SetIdleAnime();
+        
+        // 调用碰撞脚本的StopMove方法停止物理移动
+        if (playerCollision != null)
+        {
+            playerCollision.StopMove();
+        }
+    }
+
     private void PanDingAnime()
     {
         Pandingdian.transform.Rotate(PandingdianRotation, PandingdianSpeed * Time.deltaTime);
@@ -632,7 +657,7 @@ public class PlayerAnime : MonoBehaviour
     /// <summary>
     /// 完成QTE
     /// </summary>
-    private void CompleteQTE()
+    public void CompleteQTE()
     {
         isQteActive = false;
         
@@ -643,7 +668,6 @@ public class PlayerAnime : MonoBehaviour
         }
         
         // 重置冻结系统
-        FreezeSystem freezeSystem = FindObjectOfType<FreezeSystem>();
         if (freezeSystem != null)
         {
             freezeSystem.ResetFreeze();
@@ -651,21 +675,5 @@ public class PlayerAnime : MonoBehaviour
         
         // 恢复游戏状态
         Global_GameManager.Instance.state = State.Gaming;
-    }
-
-    /// <summary>
-    /// 获取当前QTE进度
-    /// </summary>
-    public int GetQTEProgress()
-    {
-        return qteCurrentCount;
-    }
-
-    /// <summary>
-    /// 获取QTE目标次数
-    /// </summary>
-    public int GetQTETargetCount()
-    {
-        return QTE_TARGET_COUNT;
     }
 }

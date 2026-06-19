@@ -261,7 +261,7 @@ public class Global_SceneManager : Singleton<Global_SceneManager>
             DeleteCurrentScene(CurrentSceneName, isHide);
         }
 
-        // 清除对象池中的所有元素
+        // 清除对象池中的所有元素（先禁用并回收活跃对象，再清空池）
         if (Global_ObjectPool.Instance != null)
         {
             Global_ObjectPool.Instance.ClearAllPools();
@@ -276,6 +276,9 @@ public class Global_SceneManager : Singleton<Global_SceneManager>
                 break;
             case "Game1":
                 Global_AudioManager.Instance.PlayBGM("Game1");
+                break;
+            case "Game2":
+                Global_AudioManager.Instance.PlayBGM("Over");
                 break;
             default:
                 Debug.LogWarning($"未配置场景{CurrentSceneName}的背景音乐");
@@ -324,25 +327,27 @@ public class Global_SceneManager : Singleton<Global_SceneManager>
     /// <param name="sceneName">需要重置的场景名称</param>
     private void ResetSceneFromJson(string sceneName)
     {
-        // 1. 拼接JSON文件路径（Assets/Touho/JSON/[场景名]_ResetConfig.json）
-        string jsonFileName = sceneName == "GameStartMenu" ? "MenuScene_ResetConfig.json" : $"{sceneName}_ResetConfig.json";
-        string jsonFilePath = Path.Combine(Application.dataPath, "Resources/Touho/JSON", jsonFileName);
+        // 1. 拼接Resources路径（使用Resources.Load方式，兼容编辑器和打包后环境）
+        string jsonFileName = sceneName == "GameStartMenu" ? "MenuScene_ResetConfig" : $"{sceneName}_ResetConfig";
+        string resourcePath = $"Touho/JSON/{jsonFileName}";
 
-        // 2. 检查文件是否存在
-        if (!File.Exists(jsonFilePath))
+        // 2. 使用Resources.Load读取JSON文件（打包后Resources文件夹会被压缩，必须用此方式）
+        TextAsset jsonAsset = Resources.Load<TextAsset>(resourcePath);
+        
+        if (jsonAsset == null)
         {
-            Debug.LogWarning($"未找到JSON文件：{jsonFilePath}");
+            Debug.LogWarning($"未找到JSON资源文件：{resourcePath}");
             return;
         }
 
         // 3. 读取JSON文件内容
-        string jsonContent = File.ReadAllText(jsonFilePath);
+        string jsonContent = jsonAsset.text;
 
         // 4. 反序列化为C#对象（修复JSON格式兼容问题）
         SceneResetConfig config = JsonUtility.FromJson<SceneResetConfig>(jsonContent);
         if (config == null || config.objectStates == null)
         {
-            Debug.LogError($"JSON文件格式错误，无法解析：{jsonFilePath}");
+            Debug.LogError($"Menu场景重置JSON文件格式错误，无法解析");
             return;
         }
 
@@ -526,6 +531,7 @@ public class Global_SceneManager : Singleton<Global_SceneManager>
             }
         }
         Time.timeScale = 1f;
+        Global_AudioManager.Instance.PlayBGM("Game1");
         Global_GameManager.Instance.state = State.Gaming;
     }
 }

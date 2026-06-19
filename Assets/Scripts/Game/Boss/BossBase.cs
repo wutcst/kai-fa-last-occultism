@@ -19,6 +19,7 @@ public class BossBase : MonoBehaviour
     private float PowerDefense = 1f; // 灵力相关受伤系数
     private float phaseDamageMultiplier = 1f; // 阶段补正受伤系数
     public bool isLockingHP = false; // 是否处于锁血状态
+    public bool isNoDead = false; // 是否无敌
     private float lockHPThreshold = 0.01f; // 锁血阈值（1%）
     private int currentPhaseDamage = 0; // 当前符卡受到的总伤害
     private int currentPhaseIndex = 0; // 当前阶段索引（用于获取对应阶段血量配置）
@@ -34,6 +35,8 @@ public class BossBase : MonoBehaviour
     [Header("引用")]
     public GameObject DefenseRealm; // 防御屏障
     public BossAnime bossAnime;
+    public UIManager uiManager;
+    public AudioClip Bonus;
     
     private void OnEnable()
     {
@@ -53,6 +56,7 @@ public class BossBase : MonoBehaviour
             Global_GameManager.Instance.OnPowerChanged -= OnPowerChangedHandler;
         }
         isLockingHP = false;
+        isNoDead = false;
     }
     
     private void Start()
@@ -166,6 +170,12 @@ public class BossBase : MonoBehaviour
     /// <param name="damage">伤害值</param>
     public void TakeDamage(int damage)
     {
+        // 如果无敌，直接返回
+        if (isNoDead)
+        {
+            return;
+        }
+
         // 如果处于锁血状态，将伤害转化为奖励
         if (isLockingHP)
         {
@@ -279,6 +289,11 @@ public class BossBase : MonoBehaviour
     /// </summary>
     public void LockHP()
     {
+        // 播放锁血音效
+        if (Bonus != null)
+        {
+            Global_AudioManager.Instance.PlaySFX(Bonus);
+        }
         isLockingHP = true;
         Debug.Log("Boss进入锁血状态");
     }
@@ -290,8 +305,8 @@ public class BossBase : MonoBehaviour
     /// <param name="damage">子弹伤害</param>
     private void ConvertDamageToReward(int damage)
     {
-        // TODO: 将伤害等比转化为奖励的逻辑
-        Debug.Log($"锁血状态下受到伤害: {damage}，转化为奖励");
+        uiManager.AddExScore(damage);
+        CreateItem.Instance.SpawnPowerItems(transform.position);
     }
     
     /// <summary>

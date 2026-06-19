@@ -32,10 +32,52 @@ public class UIManager : MonoBehaviour
 
     [Header("道具线")]
     public GameObject BorderLine;
+    [Header("UI引用")]
+    public GameObject FinalUI;
+    public GameObject GameOverUI;
 
     public LeftLife leftLife;
     public SpeelCard speelCard;
 
+    [Header("最终得分UI相关全部元素")]
+    public bool isCard1Get; // 是否获取了符卡1
+    public bool isCard2Get; // 是否获取了符卡2
+    public bool isFinalCardGet; // 是否获取了最终符卡
+    public bool isContinueGame; // 是否续关过
+    public int ExScore; // 额外得分
+    private int MissCount; // 受击次数
+    
+    [Header("游戏计时器")]
+    public float gameTime = 0f; // 游戏时长（秒）
+    private bool isTimerRunning = true; // 计时器是否运行
+    
+    /// <summary>
+    /// 获取游戏时长字符串（格式：Xm'Ys'）
+    /// </summary>
+    public string GetGameTimeString()
+    {
+        int minutes = Mathf.FloorToInt(gameTime / 60f);
+        int seconds = Mathf.FloorToInt(gameTime % 60f);
+        return $"{minutes}m'{seconds}s'";
+    }
+    
+    /// <summary>
+    /// 停止计时器
+    /// </summary>
+    public void StopTimer()
+    {
+        isTimerRunning = false;
+    }
+
+    void Update()
+    {
+        // 更新游戏计时器
+        if (isTimerRunning)
+        {
+            gameTime += Time.deltaTime;
+        }
+    }
+    
     void OnEnable()
     {
 #region 订阅广播事件
@@ -45,16 +87,26 @@ public class UIManager : MonoBehaviour
         Global_GameManager.Instance.OnGrazeChanged += SetGrazeText;
         Global_GameManager.Instance.OnLeftLifeChanged += SetLeftLife;
         Global_GameManager.Instance.OnBombChanged += SetBomb;
+        Global_GameManager.Instance.OnReincarnation += AddMissCount;
+        Global_GameManager.Instance.OnOver += ShowGameOverUI;
 #endregion
-
-        HighestScoreText.text = HighestScore.ToString();
+        MissCount = 0;
+        ExScore = 0;
+        isCard1Get = false;
+        isCard2Get = false;
+        isFinalCardGet = false;
+        isContinueGame = false;
+        SetHighestScoreText(HighestScore);
         SetScoreText(CurrentScore);
         SetPowerText(Power);
         SetGradeText(MaxGrade);
         SetGrazeText(Graze);
         SetLeftLife(LeftLife, LifePiece);
         SetBomb(SpeelCard, CardPiece);
-        BorderLine.SetActive(true);
+        if (BorderLine != null)
+        {
+            BorderLine.SetActive(true);
+        }
         Invoke(nameof(HideBorderLine), 2f);
     }
 
@@ -66,6 +118,8 @@ public class UIManager : MonoBehaviour
         Global_GameManager.Instance.OnGrazeChanged -= SetGrazeText;
         Global_GameManager.Instance.OnLeftLifeChanged -= SetLeftLife;
         Global_GameManager.Instance.OnBombChanged -= SetBomb;
+        Global_GameManager.Instance.OnReincarnation -= AddMissCount;
+        Global_GameManager.Instance.OnOver -= ShowGameOverUI;
         CancelInvoke();
     }
 
@@ -77,9 +131,19 @@ public class UIManager : MonoBehaviour
         PowerText_Ten.text = "." + ten.ToString("00");
     }
 
+    private void SetHighestScoreText(int highestScore)
+    {
+        HighestScoreText.text = highestScore.ToString();
+    }
+
     private void SetScoreText(int score)
     {
         ScoreText.text = score.ToString();
+        if (score > HighestScore)
+        {
+            Global_GameManager.Instance.HighestScore = score;
+            SetHighestScoreText(HighestScore);
+        }
     }
 
     private void SetGrazeText(int graze)
@@ -102,6 +166,34 @@ public class UIManager : MonoBehaviour
 
     private void HideBorderLine()
     {
-        BorderLine.SetActive(false);
+        if (BorderLine != null)
+        {
+            BorderLine.SetActive(false);
+        }
+    }
+
+    public void ShowFinalUI()
+    {
+        FinalUI.SetActive(true);
+    }
+
+    public void AddMissCount(State state)
+    {
+        MissCount++;
+    }
+
+    public int GetMissCount()
+    {
+        return MissCount;
+    }
+
+    public void ShowGameOverUI(State state)
+    {
+        GameOverUI.SetActive(true);
+    }
+
+    public void AddExScore(int score)
+    {
+        ExScore+=score;
     }
 }

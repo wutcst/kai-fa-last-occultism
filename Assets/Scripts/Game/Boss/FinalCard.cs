@@ -14,6 +14,7 @@ public class FinalCard : MonoBehaviour
 
     [Header("脚本引用")]
     public ChangeBG changeBG;
+    public UIManager uiManager; // UIManager脚本引用
     
     [Header("FinalCard阶段参数")]
     public int currentPhase = 1; // 当前阶段（1-4）
@@ -65,8 +66,9 @@ public class FinalCard : MonoBehaviour
 
     private void OnDisable()
     {
-        bossShootSystem.isRealmActive = false;
         IceRealm.StartFadeOut();
+        // 标记为获取了最终符卡
+        uiManager.isFinalCardGet = true;
         bossShootSystem.isAllowAreaLimit = false;
         // 停止所有协程
         StopAllCoroutines();
@@ -190,8 +192,6 @@ public class FinalCard : MonoBehaviour
             // 第四阶段：激活冰囚笼
             else if (currentPhase == 4 && IceRealm != null)
             {
-                // 激活冰领域笼
-                bossShootSystem.isRealmActive = true;
                 // 激活冰领域在区域限制攻击的中心点
                 bossShootSystem.ActivateIceRealm(new Vector3(-3f, 0f, 0f));
                 bossShootSystem.isInArea = true;

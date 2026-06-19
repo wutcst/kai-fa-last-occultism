@@ -7,6 +7,7 @@ public class PanDing : MonoBehaviour
     public FreezeSystem freezeSystem; // 冻结系统引用
     public ClearAllBullet clearAllBullet;// 清除所有子弹组件
     public SpellCardEffect spellCardEffect;// 符卡效果组件
+    public Graze graze; // 擦弹组件引用
 
     private const float ICE_CLOUD_FROZEN_DEGREE_INCREASE = 0.01f; // 每次碰撞冰云增加的冻结度
 
@@ -15,7 +16,8 @@ public class PanDing : MonoBehaviour
     /// </summary>
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        if(Global_GameManager.Instance.state == State.Gaming)
+        if(Global_GameManager.Instance.state == State.Gaming || 
+        Global_GameManager.Instance.state == State.Frozen)
         {
             // 确保只对敌人和敌人子弹生效
             if(collision.CompareTag("Enemy") || collision.CompareTag("EnemyBullet") ||
@@ -28,12 +30,9 @@ public class PanDing : MonoBehaviour
                     // 作弊模式下不处理受击
                     return;
                 }
-                // 检查是否处于无敌状态
-                if (spellCardEffect != null && Global_GameManager.Instance.state == State.NoDead)
-                {
-                    // 无敌状态下不处理受击
-                    return;
-                }
+                
+                // 停止擦弹音效并清空擦弹列表（防止玩家复活后继续播放擦弹音效）
+                StopGrazeSound();
                 
                 if (spellCardEffect != null)
                 {
@@ -57,5 +56,17 @@ public class PanDing : MonoBehaviour
                 }
             }
         }  
+    }
+    
+    /// <summary>
+    /// 停止擦弹音效并清空擦弹列表
+    /// 防止玩家复活后继续播放擦弹音效
+    /// </summary>
+    private void StopGrazeSound()
+    {
+        if (graze != null)
+        {
+            graze.ForceStopGrazeSound();
+        }
     }
 }
