@@ -34,6 +34,9 @@ public class PanDing : MonoBehaviour
                 // 停止擦弹音效并清空擦弹列表（防止玩家复活后继续播放擦弹音效）
                 StopGrazeSound();
                 
+                // 停止擦弹音效并清空擦弹列表（防止玩家复活后继续播放擦弹音效）
+                StopGrazeSound();
+                
                 if (spellCardEffect != null)
                 {
                     // 开始受击延迟
