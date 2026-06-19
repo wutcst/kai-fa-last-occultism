@@ -12,6 +12,8 @@ public class BossBeheve : MonoBehaviour
     public FinalCard finalCardScript; // 最终符卡脚本
     
     [Header("引用")]
+    public UIManager uiManager;
+
     public GameObject UI;
     public GameObject boss;
     public BossShootSystem bossShootSystem;
@@ -48,14 +50,12 @@ public class BossBeheve : MonoBehaviour
     private bool hasEndedFinalCard = false;
     public AudioClip finalOverSound;// 最终击破音效（Peng~~）
     
-       private void Update()
+    private void Update()
     {
         // 获取当前音乐时间
         if (Global_AudioManager.Instance != null)
         {
-            // 时间标记
-            // currentTime = Global_AudioManager.Instance.CurrentBGMTime;
-            currentTime += Time.deltaTime;
+            currentTime = Global_AudioManager.Instance.CurrentBGMTime;
         }
         
         // 处理时间事件
@@ -78,6 +78,7 @@ public class BossBeheve : MonoBehaviour
         if (currentTime >= 4f && currentTime < 5f && !hasActivatedUI)
         {
             animator.SetBool("isAnime", true);
+            
             UI.SetActive(true);
             card_UI.SetActive(true);
             bossAnime.ShowHP();
@@ -267,7 +268,7 @@ public class BossBeheve : MonoBehaviour
             // 重设血量条（从1%回到100%），为finalCard做准备
             if (bossAnime != null)
             {
-                bossAnime.SetHpBar(1, 1);
+                bossAnime.SetHpBar(10000, 10000);
             }
             hasCalledCard2CheckOver = true;
             bossUI.SubLife();
@@ -281,6 +282,9 @@ public class BossBeheve : MonoBehaviour
                 card2Script.enabled = false;
                 Debug.Log("禁用card2");
             }
+            // 重置无敌状态
+            bossBase.isNoDead = true;
+            bossBase.DefenseRealm.SetActive(true);
             BgAndBallon();
             Debug.Log("调用BgAndBallon方法");
             changeBG.ShowBg("balloon", 0.5f);
@@ -304,6 +308,7 @@ public class BossBeheve : MonoBehaviour
                 bossAnime.Conceal();
             }
             bossUI.ShowFinalWarning();
+            bossShootSystem.FreezeSpellCard();
             hasCalledFinalAnime = true;
         }
         
@@ -312,6 +317,11 @@ public class BossBeheve : MonoBehaviour
         {
             if (finalCardScript != null)
             {
+                // 重置锁血状态，为FinalCard第三阶段做准备
+                bossBase.isLockingHP = false;
+                // 重置无敌状态
+                bossBase.isNoDead = false;
+                bossBase.DefenseRealm.SetActive(false);
                 finalCardScript.enabled = true;
                 ShowPinion();         
                 bossUI.SetCardTime(48f);
@@ -378,6 +388,12 @@ public class BossBeheve : MonoBehaviour
         changeBG.HideBg();// 隐藏最终符卡背景
         bossShootSystem.HideTerrain();// 隐藏地形
         bossShootSystem.isAllowAreaLimit = false; // 禁用区域限制攻击
+        
+        // 淡出冰领域并禁用碰撞器
+        if (bossShootSystem.IceRealm != null)
+        {
+            bossShootSystem.IceRealm.StartFadeOut();
+        }
 
         Global_AudioManager.Instance.PlaySFX(finalOverSound);// 时符击败音效
     }
@@ -388,12 +404,21 @@ public class BossBeheve : MonoBehaviour
     public void ExplosionEnd()
     {
         Time.timeScale = 1f;
-        Invoke("ShowFinalUI", 1f);
+        bossAnime.ChrinoAnimator.enabled = true;
+        bossAnime.ChrinoAnimator.SetBool("IsDie", true);
     }
 
-    private void ShowFinalUI()
+    public void OnDieEnd()
     {
-        // 设置对应UI物体激活
+        changeBG.FreezeAll(5f);
+    }
+
+    public void ShowFinalUI()
+    {
+        Time.timeScale = 0f;
+        Debug.Log("显示最终UI");
+        Global_GameManager.Instance.state=State.FinalUI;
+        uiManager.ShowFinalUI();
     }
     
     /// <summary>

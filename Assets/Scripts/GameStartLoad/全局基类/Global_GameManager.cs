@@ -15,7 +15,7 @@ public enum State
 {
     Menu,CharacterChoose,ModeChoose,Gaming,Pause,Loading,Over,
     Replay,Option,MusicRoom,Manual,Reincarnation,NoDead,TimeStop,
-    SpellCard,Dialog,Frozen
+    SpellCard,Dialog,Frozen,FinalUI
 }
 
 /// <summary>
@@ -80,6 +80,7 @@ public class Global_GameManager : Singleton<Global_GameManager>
     public event Action<int,int> OnBombChanged;     // 符卡碎片改变事件
     public event Action<int> OnGrazeChanged;        // 擦弹数改变事件
     public event Action<State> OnReincarnation;     // 重生事件
+    public event Action<State> OnOver;              // 游戏结束事件
 #endregion
 
     protected override void Awake()
@@ -108,25 +109,36 @@ public class Global_GameManager : Singleton<Global_GameManager>
         isCheheat = false;            //是否开启作弊模式
     }
 
+    void OnDestroy()
+    {
+        // 保存最高分到 PlayerPrefs
+        PlayerPrefs.SetInt("HighestScore", HighestScore);
+        PlayerPrefs.Save();
+    }
+
     public void AddScore(int score = 1)
     {
         Score += score;
+        
+        // 如果当前分数超过最高分，更新最高分
+        if (Score > HighestScore)
+        {
+            HighestScore = Score;
+        }
+        
         OnScoreChanged?.Invoke(Score);
     }
 
     public void AddPower(int count=1)
     {
         pastPower = Power/100;
-        if(Power<400)
+        Power += count;
+        if(Power/100 > pastPower && PowerUpClip != null)
         {
-            Power += count;
-            if(Power/100 > pastPower && PowerUpClip != null)
-            {
-                Global_AudioManager.Instance.PlaySFX(PowerUpClip);
-            }
-            Power = Mathf.Clamp(Power,0,400);
-            OnPowerChanged?.Invoke(Power);
+            Global_AudioManager.Instance.PlaySFX(PowerUpClip);
         }
+        Power = Mathf.Clamp(Power,0,400);
+        OnPowerChanged?.Invoke(Power);
     }
 
     public void SubPower(int count=1)
@@ -170,9 +182,8 @@ public class Global_GameManager : Singleton<Global_GameManager>
         if(Hp>0)
         {
             Hp--;
-            state = State.Reincarnation;
             SubPower(80);
-            OnReincarnation?.Invoke(state);
+            ReBack();
             OnLeftLifeChanged?.Invoke(Hp,HpPiece);
             if(BombCount < ResetBomb)
             {
@@ -181,10 +192,20 @@ public class Global_GameManager : Singleton<Global_GameManager>
         }
         else
         {
-            AddLeftLife(7,0);
-            //state = State.Over;   // 游戏结束，满目疮痍（用广播事件）
+            state = State.Over;   // 游戏结束，满目疮痍（用广播事件）
+            OnOver?.Invoke(state);
         }
     }
+
+    /// <summary>
+    /// 重新生成玩家
+    /// </summary>
+    public void ReBack()
+    {
+        state = State.Reincarnation;
+        OnReincarnation?.Invoke(state);
+    }
+
 
     public void AddBomb(int bomb = 0 , int piece = 0)
     {
@@ -250,13 +271,13 @@ public class Global_GameManager : Singleton<Global_GameManager>
     /// </summary>
     public void ResetGameDate()
     {  
-        // 从JSON配置文件读取初始数据
-        string jsonFilePath = System.IO.Path.Combine(Application.dataPath, "Resources/Touho/JSON", "Game1_ResetConfig.json");
-        if (System.IO.File.Exists(jsonFilePath))
+        // 从Resources加载JSON配置文件（兼容编辑器和打包后环境）
+        TextAsset jsonAsset = Resources.Load<TextAsset>("Touho/JSON/Game1_ResetConfig");
+        if (jsonAsset != null)
         {
             try
             {
-                string jsonContent = System.IO.File.ReadAllText(jsonFilePath);
+                string jsonContent = jsonAsset.text;
                 GameResetConfig config = JsonUtility.FromJson<GameResetConfig>(jsonContent);
                 if (config != null)
                 {
